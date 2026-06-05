@@ -109,6 +109,61 @@
 }
 
 /* ══════════════════════════════════════
+   § 端点配置
+   ══════════════════════════════════════ */
+.endpoint-control {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex: 1;
+    min-width: 0;
+}
+
+.endpoint-input {
+    flex: 1;
+    min-width: 0;
+    padding: 7px 12px;
+    background: #1c1c1f;
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    border-radius: 6px;
+    color: var(--text-main);
+    font-size: 13px;
+    outline: none;
+    transition: border-color 0.2s;
+}
+
+.endpoint-input::placeholder {
+    color: rgba(255, 255, 255, 0.2);
+}
+
+.endpoint-input:focus {
+    border-color: var(--gold);
+    box-shadow: 0 0 0 2px rgba(245, 160, 184, 0.1);
+}
+
+.endpoint-button {
+    flex-shrink: 0;
+    padding: 7px 16px;
+    background: transparent;
+    border: 1px solid var(--gold);
+    border-radius: 6px;
+    color: var(--gold);
+    font-size: 12px;
+    letter-spacing: 0.08em;
+    cursor: pointer;
+    transition: background 0.2s, color 0.2s;
+}
+
+.endpoint-button:hover {
+    background: var(--gold);
+    color: #0d0d0f;
+}
+
+.endpoint-button:active {
+    opacity: 0.8;
+}
+
+/* ══════════════════════════════════════
    § 响应式
    ══════════════════════════════════════ */
 @media (max-width: 768px) {
@@ -123,5 +178,10 @@
 
     .settings-row-label {
         font-size: 13px;
+    }
+
+    .endpoint-button:hover {
+        background: transparent;
+        color: var(--gold);
     }
 }

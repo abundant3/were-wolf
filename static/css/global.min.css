@@ -178,3 +178,7 @@ body {
     display: inline-block;
     font-weight: bold;
 }
+
+.toast-top-center {
+    top: 60px;
+}

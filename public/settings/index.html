@@ -45,21 +45,24 @@
                 <h2 class="settings-section-title">模型配置</h2>
                 <div class="settings-row">
                     <span class="settings-row-label">端点地址</span>
-                    <div>
-                        <input type="text" placeholder="https://api.openai.com/v1">
+                    <div class="endpoint-control">
+                        <input id="endpoint-address" class="endpoint-input" type="text"
+                            placeholder="https://api.openai.com/v1">
+                        <button id="check-balance" class="endpoint-button">查询余额</button>
                     </div>
                 </div>
                 <div class="settings-row">
                     <span class="settings-row-label">端点密钥</span>
-                    <div>
-                        <input type="text" placeholder="请输入您的API密钥">
+                    <div class="endpoint-control">
+                        <input id="endpoint-key" class="endpoint-input" type="password" placeholder="请输入您的API密钥">
+                        <button id="get-api-key" class="endpoint-button">获取密钥</button>
                     </div>
                 </div>
                 <div class="settings-row">
                     <span class="settings-row-label">默认模型</span>
-                    <div>
-                        <input type="text" placeholder="请输入默认模型名称">
-                        <button>测试模型</button>
+                    <div class="endpoint-control">
+                        <input id="default-model" class="endpoint-input" type="text" placeholder="请输入默认模型名称">
+                        <button id="test-model" class="endpoint-button">测试模型</button>
                     </div>
                 </div>
             </section>
