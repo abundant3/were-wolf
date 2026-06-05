@@ -1,59 +1,259 @@
-.header-banner-button {
-    display: inline-block;
-    margin-left: 16px;
-    padding: 6px 12px;
-    font-size: 14px;
-    color: var(--text-soft);
-    background-color: transparent;
-    border: 1px solid var(--text-soft);
-    border-radius: 4px;
-    cursor: pointer;
-    transition: all 0.3s ease;
-}
-
+/* ══════════════════════════════════════
+   § 角色列表
+   ══════════════════════════════════════ */
 .role-list-container {
-    display: flex;
-    flex-direction: column;
     gap: 10px;
-    padding: 12px;
-    flex-wrap: wrap;
+    padding: 16px 24px;
 }
 
-.role-item-container {
-    border: 1px solid rgba(255, 255, 255, 0.08);
-    border-radius: 4px;
-    padding: 12px;
-    box-sizing: border-box;
+/* ══════════════════════════════════════
+   § 角色卡片
+   ══════════════════════════════════════ */
+.role-item {
     display: flex;
+    gap: 14px;
+    padding: 14px;
+    background: var(--bg-night);
+    border: 1px solid rgba(255, 255, 255, 0.06);
+    border-radius: var(--r);
+    cursor: pointer;
+    transition: border-color 0.2s ease, background 0.2s ease;
 }
 
+.role-item:hover {
+    border-color: rgba(245, 160, 184, 0.18);
+    background: var(--bg-card);
+}
+
+/* ══════════════════════════════════════
+   § 头像
+   ══════════════════════════════════════ */
 .role-item-avatar {
+    position: relative;
     width: 80px;
     height: 80px;
-    border-radius: 4px;
-    background-color: var(--bg-night);
-    margin-right: 12px;
     flex-shrink: 0;
-    border: 1px solid rgba(255, 255, 255, 0.08);
+    border-radius: var(--r);
+    background: linear-gradient(135deg, var(--bg-night), var(--bg-card));
+    border: 1px solid rgba(255, 255, 255, 0.06);
+    overflow: hidden;
 }
 
+.role-item-avatar::before {
+    content: '';
+    position: absolute;
+    top: 30%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    width: 18px;
+    height: 18px;
+    border-radius: 50%;
+    background: rgba(255, 255, 255, 0.07);
+}
+
+.role-item-avatar::after {
+    content: '';
+    position: absolute;
+    bottom: 12px;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 32px;
+    height: 16px;
+    border-radius: 16px 16px 0 0;
+    background: rgba(255, 255, 255, 0.07);
+}
+
+.role-item-avatar img {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+
+/* ══════════════════════════════════════
+   § 信息区
+   ══════════════════════════════════════ */
 .role-item-info {
     flex: 1;
+    min-width: 0;
     display: flex;
     flex-direction: column;
-    font-size: 12px;
+    justify-content: center;
+    gap: 8px;
 }
 
-.role-item-info-line {
-    margin: 0;
-    padding: 2px 0;
-    color: var(--text-soft);
-    font-size: 12px;
-    line-height: 1;
-    letter-spacing: 0.08em;
-    word-break: break-word;
-    overflow-wrap: anywhere;
+.role-item-header {
     display: flex;
     align-items: center;
     justify-content: space-between;
+    gap: 8px;
+}
+
+.role-item-name {
+    font-family: var(--font-title);
+    font-size: 15px;
+    color: var(--text-bright);
+    letter-spacing: 0.05em;
+}
+
+.role-item-tags {
+    display: flex;
+    gap: 6px;
+    flex-shrink: 0;
+}
+
+.role-item-tag {
+    padding: 2px 8px;
+    font-size: 11px;
+    color: var(--text-soft);
+    background: rgba(255, 255, 255, 0.04);
+    border-radius: 3px;
+    letter-spacing: 0.05em;
+}
+
+.role-item-desc {
+    margin: 0;
+    font-size: 12px;
+    color: var(--text-mute);
+    line-height: 1.6;
+    letter-spacing: 0.05em;
+    display: -webkit-box;
+    -webkit-line-clamp: 3;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+    word-break: break-word;
+}
+
+/* ══════════════════════════════════════
+   § 空状态
+   ══════════════════════════════════════ */
+.role-empty {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 60px 20px;
+    user-select: none;
+}
+
+.role-empty-icon {
+    position: relative;
+    width: 48px;
+    height: 48px;
+    margin-bottom: 16px;
+    border-radius: 50%;
+    background: rgba(255, 255, 255, 0.04);
+}
+
+.role-empty-icon::before {
+    content: '';
+    position: absolute;
+    top: 28%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    width: 14px;
+    height: 14px;
+    border-radius: 50%;
+    background: rgba(255, 255, 255, 0.1);
+}
+
+.role-empty-icon::after {
+    content: '';
+    position: absolute;
+    bottom: 10px;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 24px;
+    height: 12px;
+    border-radius: 12px 12px 0 0;
+    background: rgba(255, 255, 255, 0.1);
+}
+
+.role-empty-text {
+    margin: 0 0 4px;
+    font-family: var(--font-title);
+    font-size: 15px;
+    color: var(--text-soft);
+    letter-spacing: 0.1em;
+}
+
+.role-empty-hint {
+    margin: 0;
+    font-size: 12px;
+    color: var(--text-mute);
+    letter-spacing: 0.05em;
+}
+
+/* ══════════════════════════════════════
+   § 底部操作按钮
+   ══════════════════════════════════════ */
+.footer-actions {
+    gap: 12px;
+}
+
+.footer-action-btn {
+    padding: 7px 20px;
+    background: transparent;
+    border: 1px solid var(--gold);
+    border-radius: var(--r);
+    color: var(--gold);
+    font-family: var(--font-title);
+    font-size: 13px;
+    letter-spacing: 0.1em;
+    cursor: pointer;
+    transition: background 0.2s, color 0.2s;
+}
+
+.footer-action-btn:hover {
+    background: var(--gold);
+    color: #0d0d0f;
+}
+
+.footer-action-btn:active {
+    opacity: 0.8;
+}
+
+.footer-action-btn:focus-visible {
+    outline: none;
+    box-shadow: 0 0 0 2px rgba(245, 160, 184, 0.3);
+}
+
+/* ══════════════════════════════════════
+   § 响应式
+   ══════════════════════════════════════ */
+@media (max-width: 768px) {
+    .role-list-container {
+        padding: 12px 16px;
+        gap: 8px;
+    }
+
+    .role-item {
+        padding: 12px;
+        gap: 12px;
+    }
+
+    .role-item-avatar {
+        width: 80px;
+        height: 80px;
+    }
+
+    .role-item-avatar::before {
+        width: 14px;
+        height: 14px;
+    }
+
+    .role-item-avatar::after {
+        width: 26px;
+        height: 13px;
+    }
+
+    .role-item-name {
+        font-size: 14px;
+    }
+
+    .footer-action-btn:hover {
+        background: transparent;
+        color: var(--gold);
+    }
 }

@@ -3,8 +3,8 @@
 
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Document</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>角色管理</title>
     <link rel="stylesheet" href="/static/css/toastr.min.css">
     <link rel="stylesheet" href="/static/css/global.min.css">
     <link rel="stylesheet" href="index.css">
@@ -14,28 +14,102 @@
     <header class="header-banner">
         <span class="header-banner-title value-title">狼人杀</span>
         <span class="header-banner-value">角色管理</span>
-
     </header>
+
     <div class="content-container role-list-container">
-        <div class="role-item-container">
-            <div class="role-item-avatar"></div>
-            <div class="role-item-info">
-                <div class="role-item-info-line">
-                    <span class="role-item-info-line-name">姓名：王大锤</span>
-                    <span class="role-item-info-line-sex">性别：男</span>
-                    <span class="role-item-info-line-age">年龄：30</span>
-                </div>
-                <div class="role-item-info-line">
-                    肯定还是看JFK就不能看肯定还是看JFK就不能看肯定还是看JFK就不能看肯定还是看JFK就不能看肯定还是看JFK就不能看肯定还是看JFK就不能看
-                </div>
-            </div>
+        <!-- 空状态 -->
+        <div class="role-empty" id="role-empty" style="display:none">
+            <div class="role-empty-icon"></div>
+            <p class="role-empty-text">暂无角色</p>
+            <p class="role-empty-hint">点击下方「创建角色」添加第一个角色</p>
         </div>
 
+        <!-- 角色卡片 -->
+        <div class="role-item">
+            <div class="role-item-avatar"></div>
+            <div class="role-item-info">
+                <div class="role-item-header">
+                    <span class="role-item-name">王大锤</span>
+                    <div class="role-item-tags">
+                        <span class="role-item-tag">男</span>
+                        <span class="role-item-tag">30岁</span>
+                    </div>
+                </div>
+                <p class="role-item-desc">这是一段角色描述文字，用于展示角色的背景故事和性格特征。</p>
+            </div>
+        </div>
+        <div class="role-item">
+            <div class="role-item-avatar"></div>
+            <div class="role-item-info">
+                <div class="role-item-header">
+                    <span class="role-item-name">李铁柱</span>
+                    <div class="role-item-tags">
+                        <span class="role-item-tag">男</span>
+                        <span class="role-item-tag">45岁</span>
+                    </div>
+                </div>
+                <p class="role-item-desc">村中铁匠，性格憨厚直爽，力大无穷，是村民们的守护者。平日沉默寡言，但关键时刻从不退缩。</p>
+            </div>
+        </div>
+        <div class="role-item">
+            <div class="role-item-avatar"></div>
+            <div class="role-item-info">
+                <div class="role-item-header">
+                    <span class="role-item-name">李铁柱</span>
+                    <div class="role-item-tags">
+                        <span class="role-item-tag">男</span>
+                        <span class="role-item-tag">45岁</span>
+                    </div>
+                </div>
+                <p class="role-item-desc">村中铁匠，性格憨厚直爽，力大无穷，是村民们的守护者。平日沉默寡言，但关键时刻从不退缩。</p>
+            </div>
+        </div>
+        <div class="role-item">
+            <div class="role-item-avatar"></div>
+            <div class="role-item-info">
+                <div class="role-item-header">
+                    <span class="role-item-name">李铁柱</span>
+                    <div class="role-item-tags">
+                        <span class="role-item-tag">男</span>
+                        <span class="role-item-tag">45岁</span>
+                    </div>
+                </div>
+                <p class="role-item-desc">村中铁匠，性格憨厚直爽，力大无穷，是村民们的守护者。平日沉默寡言，但关键时刻从不退缩。</p>
+            </div>
+        </div>
+        <div class="role-item">
+            <div class="role-item-avatar"></div>
+            <div class="role-item-info">
+                <div class="role-item-header">
+                    <span class="role-item-name">李铁柱</span>
+                    <div class="role-item-tags">
+                        <span class="role-item-tag">男</span>
+                        <span class="role-item-tag">45岁</span>
+                    </div>
+                </div>
+                <p class="role-item-desc">村中铁匠，性格憨厚直爽，力大无穷，是村民们的守护者。平日沉默寡言，但关键时刻从不退缩。</p>
+            </div>
+        </div>
+        <div class="role-item">
+            <div class="role-item-avatar"></div>
+            <div class="role-item-info">
+                <div class="role-item-header">
+                    <span class="role-item-name">李铁柱</span>
+                    <div class="role-item-tags">
+                        <span class="role-item-tag">男</span>
+                        <span class="role-item-tag">45岁</span>
+                    </div>
+                </div>
+                <p class="role-item-desc">村中铁匠，性格憨厚直爽，力大无穷，是村民们的守护者。平日沉默寡言，但关键时刻从不退缩。</p>
+            </div>
+        </div>
     </div>
-    <footer class="footer-banner">
-        <button class="header-banner-button">同步角色</button>
-        <button class="header-banner-button">创建角色</button>
+
+    <footer class="footer-banner footer-actions">
+        <button class="footer-action-btn" id="btn-sync">同步角色</button>
+        <button class="footer-action-btn" id="btn-create">创建角色</button>
     </footer>
+
     <script src="/static/script/jquery.min.js"></script>
     <script src="/static/script/toastr.min.js"></script>
     <script src="/static/script/global.min.js"></script>
