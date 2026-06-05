@@ -1,0 +1,134 @@
+/* ══════════════════════════════════════
+   § header 标题与值
+   ══════════════════════════════════════ */
+.header-banner-title,
+.header-banner-value {
+    display: inline-block;
+    font-weight: bold;
+}
+
+.header-banner-title.value-title::after {
+    content: '·';
+    margin: 0 8px;
+}
+
+/* ══════════════════════════════════════
+   § 描述区
+   ══════════════════════════════════════ */
+.description-container {
+    width: 100%;
+    max-width: 320px;
+    flex: 1 1 0;
+    min-height: 0;
+    margin: 32px auto 20px;
+    padding: 20px 24px;
+    box-sizing: border-box;
+    text-align: center;
+    font-family: var(--font-title);
+    word-break: break-word;
+    overflow-wrap: anywhere;
+    overflow-y: auto;
+    scrollbar-width: none;
+    -ms-overflow-style: none;
+}
+
+.description-container::-webkit-scrollbar {
+    width: 0;
+    height: 0;
+    display: none;
+}
+
+.description-line {
+    margin: 0;
+    padding: 2px 0;
+    color: var(--text-soft);
+    font-size: 14px;
+    line-height: 1.6;
+    letter-spacing: 0.08em;
+    word-break: break-word;
+    overflow-wrap: anywhere;
+}
+
+.description-line:first-child {
+    color: var(--gold);
+    font-size: 16px;
+    padding-bottom: 10px;
+}
+
+/* ══════════════════════════════════════
+   § 按钮组
+   ══════════════════════════════════════ */
+.switch-control-groups {
+    width: 100%;
+    max-width: 320px;
+    margin: 0 auto;
+    flex-shrink: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    padding: 4px 0 8px;
+}
+
+.switch-control-button {
+    width: 100%;
+    padding: 14px 24px;
+    background: var(--bg-night);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    border-radius: var(--r);
+    color: var(--text-main);
+    font-family: var(--font-title);
+    font-size: 15px;
+    letter-spacing: 0.2em;
+    cursor: pointer;
+    user-select: none;
+    transition: border-color 0.18s ease, color 0.18s ease,
+        background-color 0.18s ease;
+}
+
+.switch-control-button:hover {
+    background: var(--bg-card);
+    border-color: var(--gold);
+    color: var(--gold);
+}
+
+.switch-control-button:active {
+    border-color: var(--gold-light);
+    color: var(--gold-light);
+}
+
+.switch-control-button:focus-visible {
+    outline: none;
+    border-color: var(--gold);
+    color: var(--gold);
+}
+
+/* ══════════════════════════════════════
+   § 响应式
+   ══════════════════════════════════════ */
+@media (max-width: 768px) {
+    .description-container {
+        max-width: 280px;
+        margin: 20px auto 16px;
+        padding: 16px;
+    }
+
+    .description-line {
+        font-size: 13px;
+        line-height: 1.7;
+    }
+
+    .description-line:first-child {
+        font-size: 15px;
+    }
+
+    .switch-control-groups {
+        max-width: 280px;
+        gap: 10px;
+    }
+
+    .switch-control-button {
+        padding: 12px 20px;
+        font-size: 14px;
+        letter-spacing: 0.15em;
+    }
+}

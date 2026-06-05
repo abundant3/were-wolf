@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>游戏设置</title>
+    <link rel="stylesheet" href="/static/css/toastr.min.css">
+    <link rel="stylesheet" href="/static/css/global.min.css">
+    <link rel="stylesheet" href="index.css">
+</head>
+
+<body>
+    <header class="header-banner">
+        <span class="header-banner-title value-title">狼人杀</span>
+        <span class="header-banner-value">设置</span>
+    </header>
+    <div class="content-container">
+        <div class="settings-panel">
+            <section class="settings-section">
+                <h2 class="settings-section-title">声音</h2>
+                <div class="settings-row">
+                    <span class="settings-row-label">背景音乐</span>
+                    <div class="volume-control">
+                        <input type="range" class="volume-slider" min="0" max="100" step="1" id="background-audio">
+                        <span class="volume-value" id="background-audio-value">50</span>
+                    </div>
+                </div>
+                <div class="settings-row">
+                    <span class="settings-row-label">声音效果</span>
+                    <div class="volume-control">
+                        <input type="range" class="volume-slider" min="0" max="100" step="1" id="sound-effect-audio">
+                        <span class="volume-value" id="sound-effect-audio-value">50</span>
+                    </div>
+                </div>
+                <div class="settings-row">
+                    <span class="settings-row-label">通知音效</span>
+                    <div class="volume-control">
+                        <input type="range" class="volume-slider" min="0" max="100" step="1" id="notification-audio">
+                        <span class="volume-value" id="notification-audio-value">50</span>
+                    </div>
+                </div>
+            </section>
+        </div>
+    </div>
+    <footer class="footer-banner"></footer>
+    <script src="/static/script/jquery.min.js"></script>
+    <script src="/static/script/toastr.min.js"></script>
+    <script src="/static/script/global.min.js"></script>
+    <script src="index.js"></script>
+</body>
+
+</html>
