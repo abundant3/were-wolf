@@ -1,0 +1,59 @@
+.header-banner-button {
+    display: inline-block;
+    margin-left: 16px;
+    padding: 6px 12px;
+    font-size: 14px;
+    color: var(--text-soft);
+    background-color: transparent;
+    border: 1px solid var(--text-soft);
+    border-radius: 4px;
+    cursor: pointer;
+    transition: all 0.3s ease;
+}
+
+.role-list-container {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    padding: 12px;
+    flex-wrap: wrap;
+}
+
+.role-item-container {
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    border-radius: 4px;
+    padding: 12px;
+    box-sizing: border-box;
+    display: flex;
+}
+
+.role-item-avatar {
+    width: 80px;
+    height: 80px;
+    border-radius: 4px;
+    background-color: var(--bg-night);
+    margin-right: 12px;
+    flex-shrink: 0;
+    border: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.role-item-info {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    font-size: 12px;
+}
+
+.role-item-info-line {
+    margin: 0;
+    padding: 2px 0;
+    color: var(--text-soft);
+    font-size: 12px;
+    line-height: 1;
+    letter-spacing: 0.08em;
+    word-break: break-word;
+    overflow-wrap: anywhere;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+}
