@@ -16,91 +16,76 @@
         <span class="header-banner-value">角色管理</span>
     </header>
 
-    <div class="content-container role-list-container">
+    <div class="content-container role-list-container" id="role-list-container">
         <!-- 空状态 -->
-        <div class="role-empty" id="role-empty" style="display:none">
+        <div class="role-empty" id="role-empty">
             <div class="role-empty-icon"></div>
             <p class="role-empty-text">暂无角色</p>
             <p class="role-empty-hint">点击下方「创建角色」添加第一个角色</p>
         </div>
 
         <!-- 角色卡片 -->
-        <div class="role-item">
-            <div class="role-item-avatar"></div>
+        <div class="role-item" id="role-item-template" style="display:none">
+            <div class="role-item-avatar">
+                <img src="https://c-ssl.dtstatic.com/uploads/blog/202303/20/20230320145706_07ca5.thumb.400_0.jpeg"
+                    alt="角色头像" class="role-item-avatar-img">
+            </div>
             <div class="role-item-info">
                 <div class="role-item-header">
                     <span class="role-item-name">王大锤</span>
                     <div class="role-item-tags">
-                        <span class="role-item-tag">男</span>
-                        <span class="role-item-tag">30岁</span>
+                        <span class="role-item-tag role-item-sex">男</span>
+                        <span class="role-item-tag role-item-age">30岁</span>
                     </div>
                 </div>
                 <p class="role-item-desc">这是一段角色描述文字，用于展示角色的背景故事和性格特征。</p>
             </div>
         </div>
-        <div class="role-item">
-            <div class="role-item-avatar"></div>
-            <div class="role-item-info">
-                <div class="role-item-header">
-                    <span class="role-item-name">李铁柱</span>
-                    <div class="role-item-tags">
-                        <span class="role-item-tag">男</span>
-                        <span class="role-item-tag">45岁</span>
-                    </div>
+    </div>
+
+    <!-- 角色编辑弹窗 -->
+    <div class="modal-overlay" id="modal-overlay" style="display:none">
+        <div class="modal-panel">
+            <!-- 第一行：头像 + 基本信息 -->
+            <div class="modal-row modal-row-top">
+                <div class="modal-avatar-upload" id="modal-avatar-upload">
+                    <img id="modal-avatar-preview" src="" alt="">
+                    <input type="file" id="modal-avatar-input" accept="image/*" style="display:none">
+                    <div class="modal-avatar-placeholder">点击上传头像</div>
                 </div>
-                <p class="role-item-desc">村中铁匠，性格憨厚直爽，力大无穷，是村民们的守护者。平日沉默寡言，但关键时刻从不退缩。</p>
+                <div class="modal-fields">
+                    <input class="modal-field-input" id="modal-name" type="text" placeholder="请输入角色姓名">
+                    <input class="modal-field-input" id="modal-sex" type="text" placeholder="男 / 女">
+                    <input class="modal-field-input" id="modal-age" type="number" placeholder="请输入年龄">
+                </div>
             </div>
-        </div>
-        <div class="role-item">
-            <div class="role-item-avatar"></div>
-            <div class="role-item-info">
-                <div class="role-item-header">
-                    <span class="role-item-name">李铁柱</span>
-                    <div class="role-item-tags">
-                        <span class="role-item-tag">男</span>
-                        <span class="role-item-tag">45岁</span>
-                    </div>
-                </div>
-                <p class="role-item-desc">村中铁匠，性格憨厚直爽，力大无穷，是村民们的守护者。平日沉默寡言，但关键时刻从不退缩。</p>
+
+            <!-- 第二行：角色描述 -->
+            <div class="modal-section">
+                <textarea class="modal-textarea" id="modal-desc" placeholder="请输入角色的背景故事和性格特征"></textarea>
             </div>
-        </div>
-        <div class="role-item">
-            <div class="role-item-avatar"></div>
-            <div class="role-item-info">
-                <div class="role-item-header">
-                    <span class="role-item-name">李铁柱</span>
-                    <div class="role-item-tags">
-                        <span class="role-item-tag">男</span>
-                        <span class="role-item-tag">45岁</span>
-                    </div>
+
+            <!-- 第三行：模型配置 -->
+            <div class="modal-section">
+                <div class="modal-field">
+                    <input class="modal-field-input" id="modal-endpoint" type="text"
+                        placeholder="https://api.openai.com/v1">
+                    <button class="modal-field-button" id="modal-check-balance">查询余额</button>
                 </div>
-                <p class="role-item-desc">村中铁匠，性格憨厚直爽，力大无穷，是村民们的守护者。平日沉默寡言，但关键时刻从不退缩。</p>
+                <div class="modal-field">
+                    <input class="modal-field-input" id="modal-key" type="text" placeholder="请输入API密钥">
+                    <button class="modal-field-button" id="modal-get-api-key">获取密钥</button>
+                </div>
+                <div class="modal-field">
+                    <input class="modal-field-input" id="modal-model" type="text" placeholder="请输入模型名称">
+                    <button class="modal-field-button" id="modal-test-model">测试模型</button>
+                </div>
             </div>
-        </div>
-        <div class="role-item">
-            <div class="role-item-avatar"></div>
-            <div class="role-item-info">
-                <div class="role-item-header">
-                    <span class="role-item-name">李铁柱</span>
-                    <div class="role-item-tags">
-                        <span class="role-item-tag">男</span>
-                        <span class="role-item-tag">45岁</span>
-                    </div>
-                </div>
-                <p class="role-item-desc">村中铁匠，性格憨厚直爽，力大无穷，是村民们的守护者。平日沉默寡言，但关键时刻从不退缩。</p>
-            </div>
-        </div>
-        <div class="role-item">
-            <div class="role-item-avatar"></div>
-            <div class="role-item-info">
-                <div class="role-item-header">
-                    <span class="role-item-name">李铁柱</span>
-                    <div class="role-item-tags">
-                        <span class="role-item-tag">男</span>
-                        <span class="role-item-tag">45岁</span>
-                    </div>
-                </div>
-                <p class="role-item-desc">村中铁匠，性格憨厚直爽，力大无穷，是村民们的守护者。平日沉默寡言，但关键时刻从不退缩。</p>
+
+            <!-- 第四行：操作按钮 -->
+            <div class="modal-row modal-row-actions">
+                <button class="modal-btn modal-btn-save" id="modal-save">保存角色</button>
+                <button class="modal-btn modal-btn-delete" id="modal-delete">删除角色</button>
             </div>
         </div>
     </div>
