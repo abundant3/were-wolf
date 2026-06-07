@@ -248,6 +248,54 @@ function bindButtonEvents() {
         }
     });
 
+    // 测试模型
+    modalTestModelButton.addEventListener('click', async function () {
+        var endpoint = modalEndpointInput.value.trim() || settings.endpointAddress || '';
+        var key = modalKeyInput.value.trim() || settings.endpointKey || '';
+        var model = modalModelInput.value.trim() || settings.defaultModel || '';
+
+        if (!endpoint || !key || !model) {
+            toastr.warning('请先填写端点地址、密钥和模型名称');
+            return;
+        }
+
+        modalTestModelButton.disabled = true;
+        modalTestModelButton.textContent = '测试中...';
+
+        try {
+            var response = await fetch(endpoint + '/v1/chat/completions', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': 'Bearer ' + key
+                },
+                body: JSON.stringify({
+                    model: model,
+                    messages: [{ role: 'user', content: '你好' }]
+                })
+            });
+
+            if (response.ok) {
+                var data = await response.json();
+                if (data.choices && data.choices.length > 0) {
+                    toastr.success('模型连接成功');
+                } else {
+                    toastr.warning('收到响应但格式异常');
+                }
+            } else {
+                var errorText = await response.text().catch(function () { return ''; });
+                toastr.error('请求失败 (' + response.status + ')');
+                console.error('Test model error:', response.status, errorText);
+            }
+        } catch (error) {
+            toastr.error('连接失败，请检查端点地址');
+            console.error('Test model error:', error);
+        } finally {
+            modalTestModelButton.disabled = false;
+            modalTestModelButton.textContent = '测试模型';
+        }
+    });
+
     // 点击遮罩关闭
     modalOverlay.addEventListener('click', function (e) {
         if (e.target === modalOverlay) {

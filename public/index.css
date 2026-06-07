@@ -132,3 +132,198 @@
         letter-spacing: 0.15em;
     }
 }
+
+/* ══════════════════════════════════════
+   § 创建会议面板
+   ══════════════════════════════════════ */
+.create-meeting-container {
+    position: fixed;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    width: 100%;
+    max-width: 360px;
+    padding: 20px;
+    background: var(--bg-night);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    border-radius: var(--r-lg);
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+    /* display: none; */
+}
+
+.meeting-item {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.meeting-item-label {
+    flex-shrink: 0;
+    width: 60px;
+    font-size: 13px;
+    color: var(--text-soft);
+    letter-spacing: 0.05em;
+}
+
+.meeting-input {
+    flex: 1;
+    min-width: 0;
+    padding: 7px 12px;
+    background: var(--bg-card);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    border-radius: var(--r);
+    color: var(--text-main);
+    font-size: 13px;
+    font-family: var(--font-body);
+    outline: none;
+    transition: border-color 0.2s;
+}
+
+.meeting-input::placeholder {
+    color: rgba(255, 255, 255, 0.2);
+}
+
+.meeting-input:focus {
+    border-color: var(--gold);
+    box-shadow: 0 0 0 2px rgba(245, 160, 184, 0.1);
+}
+
+.meeting-add-btn {
+    flex: 1;
+    padding: 7px 0;
+    background: transparent;
+    border: 1px solid var(--gold);
+    border-radius: var(--r);
+    color: var(--gold);
+    font-size: 12px;
+    letter-spacing: 0.08em;
+    cursor: pointer;
+    transition: background 0.2s, color 0.2s;
+}
+
+.meeting-add-btn:hover {
+    background: var(--gold);
+    color: #0d0d0f;
+}
+
+.meeting-add-btn:active {
+    opacity: 0.8;
+}
+
+/* ══════════════════════════════════════
+   § 已选身份标签
+   ══════════════════════════════════════ */
+.meeting-roles-list {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    min-height: 0;
+}
+
+.meeting-role-tag {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 4px 10px;
+    font-size: 12px;
+    color: var(--text-soft);
+    background: rgba(255, 255, 255, 0.04);
+    border-radius: 3px;
+    letter-spacing: 0.05em;
+    user-select: none;
+}
+
+.meeting-role-tag .tag-remove {
+    margin-left: 2px;
+    font-size: 13px;
+    color: var(--text-mute);
+    cursor: pointer;
+    line-height: 1;
+    transition: color 0.15s;
+}
+
+.meeting-role-tag .tag-remove:hover {
+    color: var(--cinnabar);
+}
+
+/* ══════════════════════════════════════
+   § 身份选择弹窗
+   ══════════════════════════════════════ */
+.modal-overlay {
+    position: fixed;
+    inset: 0;
+    z-index: 1000;
+    background: rgba(0, 0, 0, 0.6);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 24px;
+    box-sizing: border-box;
+    overflow-y: auto;
+}
+
+.modal-panel {
+    width: 100%;
+    max-width: 360px;
+    background: var(--bg-night);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    border-radius: var(--r-lg);
+    padding: 20px;
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
+}
+
+.role-select-form {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+}
+
+.role-select-form select {
+    flex: 1;
+    min-width: 0;
+}
+
+.role-quantity-input {
+    width: 56px;
+    flex: none !important;
+    text-align: center;
+}
+
+.role-select-desc {
+    margin: 0;
+    padding: 10px 12px;
+    background: var(--bg-card);
+    border-radius: var(--r);
+    font-size: 12px;
+    color: var(--text-soft);
+    line-height: 1.6;
+    letter-spacing: 0.05em;
+}
+
+.role-select-desc .camp-label {
+    color: var(--gold);
+    font-size: 11px;
+    letter-spacing: 0.1em;
+}
+
+.role-select-actions {
+    display: flex;
+    justify-content: flex-end;
+}
+
+.role-select-actions .meeting-add-btn {
+    flex: none;
+    padding: 7px 24px;
+}
+
+/* select 暗色主题 */
+.role-select-form select option {
+    background: var(--bg-night);
+    color: var(--text-main);
+}

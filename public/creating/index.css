@@ -1,0 +1,510 @@
+/* ══════════════════════════════════════
+   § 房间设置容器
+   ══════════════════════════════════════ */
+.settings-container {
+    gap: 10px;
+    padding: 16px 24px;
+    overflow-y: auto;
+    scrollbar-width: none;
+    -ms-overflow-style: none;
+}
+
+.settings-container::-webkit-scrollbar {
+    width: 0;
+    height: 0;
+    display: none;
+}
+
+/* ══════════════════════════════════════
+   § 设置区块
+   ══════════════════════════════════════ */
+.settings-section {
+    background: var(--bg-night);
+    border: 1px solid rgba(255, 255, 255, 0.06);
+    border-radius: var(--r);
+    padding: 16px 18px;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+.settings-section-title {
+    margin: 0;
+    font-family: var(--font-title);
+    font-size: 13px;
+    font-weight: normal;
+    color: var(--gold);
+    letter-spacing: 0.15em;
+}
+
+.settings-row {
+    display: flex;
+    gap: 14px;
+    align-items: flex-end;
+}
+
+.settings-field {
+    flex: 1;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+.settings-field-shrink {
+    flex: none;
+    width: fit-content;
+}
+
+/* ══════════════════════════════════════
+   § 输入框
+   ══════════════════════════════════════ */
+.settings-input {
+    width: 100%;
+    padding: 8px 12px;
+    background: var(--bg-card);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    border-radius: var(--r);
+    color: var(--text-main);
+    font-size: 14px;
+    font-family: var(--font-body);
+    outline: none;
+    transition: border-color 0.2s;
+    box-sizing: border-box;
+}
+
+.settings-input::placeholder {
+    color: rgba(255, 255, 255, 0.2);
+}
+
+.settings-input:focus {
+    border-color: var(--gold);
+    box-shadow: 0 0 0 2px rgba(245, 160, 184, 0.1);
+}
+
+select.settings-input {
+    appearance: none;
+    -webkit-appearance: none;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath d='M3 5l3 3 3-3' stroke='rgba(255,255,255,0.3)' stroke-width='1.5' fill='none'/%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: right 12px center;
+    padding-right: 32px;
+    cursor: pointer;
+}
+
+select.settings-input option {
+    background: var(--bg-night);
+    color: var(--text-main);
+}
+
+/* ══════════════════════════════════════
+   § 步进器
+   ══════════════════════════════════════ */
+.stepper {
+    display: flex;
+    align-items: center;
+    gap: 0;
+    width: fit-content;
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    border-radius: var(--r);
+    overflow: hidden;
+}
+
+.stepper-btn {
+    width: 40px;
+    height: 36px;
+    background: var(--bg-card);
+    border: none;
+    color: var(--text-main);
+    font-size: 16px;
+    cursor: pointer;
+    transition: background 0.15s, color 0.15s;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.stepper-btn:hover {
+    background: var(--gold);
+    color: #0d0d0f;
+}
+
+.stepper-btn:active {
+    opacity: 0.7;
+}
+
+.stepper-value {
+    width: 48px;
+    height: 36px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: var(--bg-night);
+    color: var(--text-bright);
+    font-family: var(--font-title);
+    font-size: 15px;
+    letter-spacing: 0.05em;
+    border-left: 1px solid rgba(255, 255, 255, 0.06);
+    border-right: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+/* ══════════════════════════════════════
+   § 身份配置
+   ══════════════════════════════════════ */
+.role-summary {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    font-size: 12px;
+}
+
+.role-summary-label {
+    color: var(--text-mute);
+    letter-spacing: 0.05em;
+}
+
+.role-summary-count {
+    color: var(--gold);
+    font-family: var(--font-title);
+    font-size: 14px;
+}
+
+.role-summary-count.over {
+    color: var(--cinnabar);
+}
+
+.role-warning {
+    margin: 0;
+    padding: 8px 12px;
+    background: rgba(200, 60, 60, 0.08);
+    border: 1px solid rgba(200, 60, 60, 0.2);
+    border-radius: var(--r);
+    font-size: 12px;
+    color: var(--cinnabar);
+    letter-spacing: 0.05em;
+    line-height: 1.5;
+    display: none;
+}
+
+.role-warning.visible {
+    display: block;
+}
+
+.role-list {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    min-height: 0;
+}
+
+.role-item-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 8px 12px;
+    background: rgba(255, 255, 255, 0.03);
+    border-radius: var(--r);
+    transition: background 0.15s;
+}
+
+.role-item-row:hover {
+    background: rgba(255, 255, 255, 0.06);
+}
+
+.role-item-info {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.role-item-badge {
+    width: 28px;
+    height: 28px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 13px;
+    flex-shrink: 0;
+}
+
+.role-item-badge.wolf {
+    background: rgba(200, 60, 60, 0.2);
+    color: #e06060;
+}
+
+.role-item-badge.good {
+    background: rgba(80, 160, 220, 0.2);
+    color: #60a8e0;
+}
+
+.role-item-badge.third {
+    background: rgba(180, 140, 60, 0.2);
+    color: #c0a040;
+}
+
+.role-item-name {
+    font-size: 13px;
+    color: var(--text-main);
+    letter-spacing: 0.05em;
+}
+
+.role-item-qty {
+    font-size: 12px;
+    color: var(--text-soft);
+    font-family: var(--font-title);
+    letter-spacing: 0.05em;
+}
+
+.role-item-remove {
+    width: 24px;
+    height: 24px;
+    background: none;
+    border: none;
+    color: var(--text-mute);
+    font-size: 14px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 4px;
+    transition: color 0.15s, background 0.15s;
+}
+
+.role-item-remove:hover {
+    color: var(--cinnabar);
+    background: rgba(200, 60, 60, 0.1);
+}
+
+.settings-add-btn {
+    width: 100%;
+    padding: 8px;
+    background: transparent;
+    border: 1px dashed rgba(255, 255, 255, 0.12);
+    border-radius: var(--r);
+    color: var(--text-soft);
+    font-size: 13px;
+    letter-spacing: 0.1em;
+    cursor: pointer;
+    transition: border-color 0.2s, color 0.2s;
+}
+
+.settings-add-btn:hover {
+    border-color: var(--gold);
+    color: var(--gold);
+}
+
+/* ══════════════════════════════════════
+   § 模式切换
+   ══════════════════════════════════════ */
+.mode-toggle {
+    display: flex;
+    gap: 0;
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    border-radius: var(--r);
+    overflow: hidden;
+    width: fit-content;
+}
+
+.mode-btn {
+    padding: 8px 20px;
+    background: var(--bg-card);
+    border: none;
+    color: var(--text-soft);
+    font-family: var(--font-title);
+    font-size: 13px;
+    letter-spacing: 0.1em;
+    cursor: pointer;
+    transition: background 0.2s, color 0.2s;
+}
+
+.mode-btn:first-child {
+    border-right: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+.mode-btn.active {
+    background: var(--gold);
+    color: #0d0d0f;
+}
+
+.mode-btn:not(.active):hover {
+    color: var(--text-main);
+}
+
+.mode-desc {
+    margin: 0;
+    font-size: 12px;
+    color: var(--text-mute);
+    letter-spacing: 0.05em;
+    line-height: 1.6;
+}
+
+/* ══════════════════════════════════════
+   § 底部操作按钮
+   ══════════════════════════════════════ */
+.footer-actions {
+    gap: 12px;
+}
+
+.footer-action-btn {
+    padding: 7px 20px;
+    background: transparent;
+    border: 1px solid var(--gold);
+    border-radius: var(--r);
+    color: var(--gold);
+    font-family: var(--font-title);
+    font-size: 13px;
+    letter-spacing: 0.1em;
+    cursor: pointer;
+    transition: background 0.2s, color 0.2s;
+}
+
+.footer-action-btn:hover {
+    background: var(--gold);
+    color: #0d0d0f;
+}
+
+.footer-action-btn:active {
+    opacity: 0.8;
+}
+
+.footer-action-primary {
+    background: var(--gold);
+    color: #0d0d0f;
+}
+
+.footer-action-primary:hover {
+    background: transparent;
+    color: var(--gold);
+}
+
+/* ══════════════════════════════════════
+   § 弹窗
+   ══════════════════════════════════════ */
+.modal-overlay {
+    position: fixed;
+    inset: 0;
+    z-index: 1000;
+    background: rgba(0, 0, 0, 0.6);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 24px;
+    box-sizing: border-box;
+    overflow-y: auto;
+}
+
+.modal-panel {
+    width: 100%;
+    max-width: 360px;
+    background: var(--bg-night);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    border-radius: var(--r-lg);
+    padding: 20px;
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
+}
+
+.modal-section {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.modal-section-title {
+    margin: 0;
+    font-family: var(--font-title);
+    font-size: 13px;
+    font-weight: normal;
+    color: var(--gold);
+    letter-spacing: 0.15em;
+}
+
+.role-select-desc {
+    padding: 10px 12px;
+    background: var(--bg-card);
+    border-radius: var(--r);
+    font-size: 12px;
+    color: var(--text-soft);
+    line-height: 1.6;
+    letter-spacing: 0.05em;
+}
+
+.role-select-desc .camp-label {
+    color: var(--gold);
+    font-size: 11px;
+    letter-spacing: 0.1em;
+}
+
+.modal-row-actions {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
+}
+
+.modal-btn {
+    padding: 8px 20px;
+    border-radius: var(--r);
+    font-family: var(--font-title);
+    font-size: 13px;
+    letter-spacing: 0.1em;
+    cursor: pointer;
+    transition: background 0.2s, color 0.2s, opacity 0.2s;
+}
+
+.modal-btn-save {
+    background: transparent;
+    color: var(--gold);
+    border: 1px solid var(--gold);
+}
+
+.modal-btn-save:hover {
+    background: var(--gold);
+    color: #0d0d0f;
+}
+
+.modal-btn-cancel {
+    background: transparent;
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    color: var(--text-soft);
+}
+
+.modal-btn-cancel:hover {
+    border-color: rgba(255, 255, 255, 0.25);
+    color: var(--text-main);
+}
+
+.modal-btn:active {
+    opacity: 0.7;
+}
+
+/* ══════════════════════════════════════
+   § 响应式
+   ══════════════════════════════════════ */
+@media (max-width: 768px) {
+    .settings-container {
+        padding: 12px 16px;
+        gap: 8px;
+    }
+
+    .settings-section {
+        padding: 14px 14px;
+        gap: 10px;
+    }
+
+    .footer-action-btn:hover {
+        background: transparent;
+        color: var(--gold);
+    }
+
+    .footer-action-primary:hover {
+        background: var(--gold);
+        color: #0d0d0f;
+    }
+
+    .modal-panel {
+        max-width: 100%;
+    }
+}

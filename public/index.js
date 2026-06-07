@@ -1,13 +1,12 @@
 document.addEventListener('DOMContentLoaded', async function () {
-    await bindButtons();
+    await bindEvents();
 });
 
-async function bindButtons() {
+async function bindEvents() {
     const buttons = document.querySelectorAll('.switch-control-button');
     buttons.forEach(button => {
-        button.addEventListener('click', () => {
-            const action = button.getAttribute('data-action');
-            window.location.href = `/${action}`;
+        button.addEventListener('click', async function () {
+            window.location.href = `/${button.getAttribute('data-action')}`;
         });
     });
-}
+};
