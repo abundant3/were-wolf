@@ -1,0 +1,149 @@
+{
+  "id": "room-1717800000000-abc123",
+  "name": "月圆之夜",
+  "playerCount": 10,
+  "mode": "beginner",
+  "createdAt": 1717800000000,
+  "roles": [
+    { "id": "werewolf", "qty": 3 },
+    { "id": "villager", "qty": 3 },
+    { "id": "seer", "qty": 1 },
+    { "id": "witch", "qty": 1 },
+    { "id": "hunter", "qty": 1 },
+    { "id": "guard", "qty": 1 }
+  ],
+  "players": [
+    {
+      "id": "player-user",
+      "name": "小明",
+      "isUser": true,
+      "identityId": "seer"
+    },
+    {
+      "id": "default-01",
+      "name": "陈守正",
+      "identityId": "werewolf",
+      "character": {
+        "id": "default-01",
+        "name": "陈守正",
+        "sex": "男",
+        "age": "62",
+        "desc": "退休老刑警，逻辑缜密，善于从细节中发现矛盾。说话沉稳有力，不轻易表态，一旦开口便直击要害。",
+        "isDefault": true
+      }
+    },
+    {
+      "id": "default-05",
+      "name": "孙浩然",
+      "identityId": "werewolf",
+      "character": {
+        "id": "default-05",
+        "name": "孙浩然",
+        "sex": "男",
+        "age": "28",
+        "desc": "互联网公司程序员，理性冷静，习惯用排除法和概率思维。社交略显笨拙，但逻辑推演能力极强。",
+        "isDefault": true
+      }
+    },
+    {
+      "id": "default-08",
+      "name": "刘婉清",
+      "identityId": "werewolf",
+      "character": {
+        "id": "default-08",
+        "name": "刘婉清",
+        "sex": "女",
+        "age": "26",
+        "desc": "自由插画师，感性细腻，共情能力强。经常凭直觉做出判断，擅长感受他人情绪变化，但逻辑推理稍弱。",
+        "isDefault": true
+      }
+    },
+    {
+      "id": "default-03",
+      "name": "赵铁柱",
+      "identityId": "villager",
+      "character": {
+        "id": "default-03",
+        "name": "赵铁柱",
+        "sex": "男",
+        "age": "45",
+        "desc": "建筑工地包工头，性格豪爽直率，嗓门大。说话不经大脑但重情义，容易被激怒也容易相信人。",
+        "isDefault": true
+      }
+    },
+    {
+      "id": "default-06",
+      "name": "周桂芬",
+      "identityId": "villager",
+      "character": {
+        "id": "default-06",
+        "name": "周桂芬",
+        "sex": "女",
+        "age": "58",
+        "desc": "菜市场卖菜大姐，精明泼辣，人情世故门儿清。喜欢八卦，消息灵通，擅长从闲言碎语中拼凑真相。",
+        "isDefault": true
+      }
+    },
+    {
+      "id": "default-11",
+      "name": "马飞",
+      "identityId": "villager",
+      "character": {
+        "id": "default-11",
+        "name": "马飞",
+        "sex": "男",
+        "age": "24",
+        "desc": "外卖骑手，头脑灵活反应快，嘴贫话多。善于察言观色和见风使舵，总能站在多数人一边，让人觉得亲切。",
+        "isDefault": true
+      }
+    },
+    {
+      "id": "default-04",
+      "name": "王芷若",
+      "identityId": "witch",
+      "character": {
+        "id": "default-04",
+        "name": "王芷若",
+        "sex": "女",
+        "age": "34",
+        "desc": "社区诊所医生，温和细心。擅长在混乱中保持冷静，习惯用医学思维分析问题，对每个人都关怀备至。",
+        "isDefault": true
+      }
+    },
+    {
+      "id": "default-09",
+      "name": "黄大勇",
+      "identityId": "hunter",
+      "character": {
+        "id": "default-09",
+        "name": "黄大勇",
+        "sex": "男",
+        "age": "39",
+        "desc": "退伍军人，现任小区保安队长。正义感强，行动力十足，做事果断。喜欢正面硬刚，不擅长委婉和欺骗。",
+        "isDefault": true
+      }
+    },
+    {
+      "id": "default-12",
+      "name": "许明珠",
+      "identityId": "guard",
+      "character": {
+        "id": "default-12",
+        "name": "许明珠",
+        "sex": "女",
+        "age": "52",
+        "desc": "居委会主任，热心肠的\"朝阳群众\"。组织能力强，对每家每户情况了如指掌，善于协调矛盾和动员群众。",
+        "isDefault": true
+      }
+    }
+  ],
+  "events": [
+    { "day": 1, "phase": "night", "text": "刘婉清被狼人杀害", "time": 1717800100000 },
+    { "day": 1, "phase": "day", "text": "马飞被投票出局", "time": 1717800200000 },
+    { "day": 2, "phase": "night", "text": "周桂芬被狼人杀害", "time": 1717800300000 }
+  ],
+  "messages": [
+    { "name": "小明", "text": "大家好", "time": 1717800050000 },
+    { "name": "陈守正", "text": "@小明 你好", "time": 1717800060000 }
+  ]
+}

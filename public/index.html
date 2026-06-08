@@ -3,40 +3,264 @@
 
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, minimum-scale=1.0">
     <title>狼人杀</title>
     <link rel="stylesheet" href="/static/css/toastr.min.css">
     <link rel="stylesheet" href="/static/css/global.min.css">
-    <link rel="stylesheet" href="/index.css">
+    <link rel="stylesheet" href="index.css">
 </head>
 
 <body>
     <header class="header-banner">
         <span class="header-banner-title">狼人杀</span>
-        <span class="header-banner-value"></span>
+        <span class="header-banner-value" id="header-value"></span>
     </header>
+
     <div class="content-container">
-        <div class="description-container">
-            <p class="description-line">月隐之夜</p>
-            <p class="description-line">古老的村庄被浓雾悄然笼罩</p>
-            <p class="description-line">狼人已混入熟悉的面孔之中</p>
-            <p class="description-line">夜幕之下，獠牙在暗处张开</p>
-            <p class="description-line">白日围坐，目光彼此审视</p>
-            <p class="description-line">请在月光重现之前找出真凶</p>
+
+        <!-- ===== 首页 ===== -->
+        <div data-view="home">
+            <div class="description-container">
+                <p class="description-line">月隐之夜</p>
+                <p class="description-line">古老的村庄被浓雾悄然笼罩</p>
+                <p class="description-line">狼人已混入熟悉的面孔之中</p>
+                <p class="description-line">夜幕之下，獠牙在暗处张开</p>
+                <p class="description-line">白日围坐，目光彼此审视</p>
+                <p class="description-line">请在月光重现之前找出真凶</p>
+            </div>
+            <div class="switch-control-groups">
+                <button class="switch-control-button" data-action="creating">开始游戏</button>
+                <button class="switch-control-button" data-action="savepool">会议管理</button>
+                <button class="switch-control-button" data-action="rolepool">角色管理</button>
+                <button class="switch-control-button" data-action="settings">游戏设置</button>
+            </div>
         </div>
-        <div class="switch-control-groups">
-            <button class="switch-control-button" data-action="creating">开始游戏</button>
-            <button class="switch-control-button" data-action="savepool">会议管理</button>
-            <button class="switch-control-button" data-action="rolepool">角色管理</button>
-            <button class="switch-control-button" data-action="settings">游戏设置</button>
+
+        <!-- ===== 房间设置 ===== -->
+        <div data-view="creating" style="display:none">
+            <div class="view-container">
+                <div class="settings-section">
+                    <div class="settings-row">
+                        <div class="settings-field">
+                            <h3 class="settings-section-title">房间名称</h3>
+                            <input class="settings-input" id="room-name" type="text" placeholder="请输入房间名称"
+                                maxlength="20">
+                        </div>
+                        <div class="settings-field settings-field-shrink">
+                            <h3 class="settings-section-title">人数</h3>
+                            <div class="stepper">
+                                <button class="stepper-btn" id="player-minus">−</button>
+                                <span class="stepper-value" id="player-count">9</span>
+                                <button class="stepper-btn" id="player-plus">+</button>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="settings-row">
+                        <div class="settings-field">
+                            <h3 class="settings-section-title">你的名字</h3>
+                            <input class="settings-input" id="player-name" type="text" placeholder="请输入你的名字"
+                                maxlength="10">
+                        </div>
+                    </div>
+                </div>
+                <div class="settings-section">
+                    <h3 class="settings-section-title">身份配置</h3>
+                    <div class="role-summary">
+                        <span class="role-summary-label">已分配</span>
+                        <span class="role-summary-count" id="assigned-count">0</span>
+                        <span class="role-summary-label">/</span>
+                        <span class="role-summary-count" id="total-count">9</span>
+                        <span class="role-summary-label">人</span>
+                    </div>
+                    <p class="role-warning" id="role-warning"></p>
+                    <div class="role-list" id="role-list"></div>
+                    <button class="settings-add-btn" id="btn-add-role">+ 添加身份</button>
+                </div>
+                <div class="settings-section">
+                    <h3 class="settings-section-title">游戏模式</h3>
+                    <div class="mode-toggle">
+                        <button class="mode-btn active" id="mode-beginner">新手模式</button>
+                        <button class="mode-btn" id="mode-expert">专家模式</button>
+                    </div>
+                    <p class="mode-desc" id="mode-desc">简化规则，适合初次体验狼人杀的玩家</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- ===== 角色管理 ===== -->
+        <div data-view="rolepool" style="display:none">
+            <div class="view-container rolepool-container" id="role-list-container">
+                <div class="role-empty" id="role-empty">
+                    <div class="role-empty-icon"></div>
+                    <p class="role-empty-text">暂无角色</p>
+                    <p class="role-empty-hint">点击下方「创建角色」添加第一个角色</p>
+                </div>
+                <div class="role-card" id="role-item-template" style="display:none">
+                    <div class="role-card-avatar">
+                        <img src="" alt="角色头像" class="role-card-avatar-img">
+                    </div>
+                    <div class="role-card-info">
+                        <div class="role-card-header">
+                            <span class="role-card-name"></span>
+                            <div class="role-card-tags">
+                                <span class="role-card-tag role-card-sex"></span>
+                                <span class="role-card-tag role-card-age"></span>
+                            </div>
+                        </div>
+                        <p class="role-card-desc"></p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- ===== 游戏设置 ===== -->
+        <div data-view="settings" style="display:none">
+            <div class="view-container">
+                <div class="settings-panel">
+                    <section class="settings-section">
+                        <h2 class="settings-section-title">声音</h2>
+                        <div class="settings-settings-row">
+                            <span class="settings-row-label">背景音乐</span>
+                            <div class="volume-control">
+                                <input type="range" class="volume-slider" min="0" max="100" step="1"
+                                    id="bg-audio-slider">
+                                <span class="volume-value" id="bg-audio-value">0</span>
+                            </div>
+                        </div>
+                        <p class="ios-volume-hint" id="ios-volume-hint" style="display:none">iOS 设备请使用侧边按键调节音量</p>
+                        <div class="settings-settings-row">
+                            <span class="settings-row-label">声音效果</span>
+                            <div class="volume-control">
+                                <input type="range" class="volume-slider" min="0" max="100" step="1"
+                                    id="sfx-audio-slider">
+                                <span class="volume-value" id="sfx-audio-value">0</span>
+                            </div>
+                        </div>
+                        <div class="settings-settings-row">
+                            <span class="settings-row-label">通知音效</span>
+                            <div class="volume-control">
+                                <input type="range" class="volume-slider" min="0" max="100" step="1"
+                                    id="noti-audio-slider">
+                                <span class="volume-value" id="noti-audio-value">0</span>
+                            </div>
+                        </div>
+                    </section>
+                    <section class="settings-section">
+                        <h2 class="settings-section-title">模型配置</h2>
+                        <div class="settings-settings-row">
+                            <span class="settings-row-label">端点地址</span>
+                            <div class="endpoint-control">
+                                <input id="endpoint-address" class="endpoint-input" type="text"
+                                    placeholder="https://api.openai.com/v1">
+                                <button id="check-balance" class="endpoint-button">查询余额</button>
+                            </div>
+                        </div>
+                        <div class="settings-settings-row">
+                            <span class="settings-row-label">端点密钥</span>
+                            <div class="endpoint-control">
+                                <input id="endpoint-key" class="endpoint-input" type="text" placeholder="请输入您的API密钥"
+                                    autocomplete="off">
+                                <button id="get-api-key" class="endpoint-button">获取密钥</button>
+                            </div>
+                        </div>
+                        <div class="settings-settings-row">
+                            <span class="settings-row-label">默认模型</span>
+                            <div class="endpoint-control">
+                                <input id="default-model" class="endpoint-input" type="text" placeholder="请输入默认模型名称">
+                                <button id="test-model" class="endpoint-button">测试模型</button>
+                            </div>
+                        </div>
+                    </section>
+                </div>
+            </div>
+        </div>
+
+        <!-- ===== 会议管理 ===== -->
+        <div data-view="savepool" style="display:none">
+            <div class="view-container roompool-container" id="room-list-container">
+            </div>
+        </div>
+
+        <!-- ===== 房间详情 ===== -->
+        <div data-view="meeting" style="display:none">
+            <div class="view-container">
+            </div>
+        </div>
+
+    </div>
+
+
+    <footer class="footer-banner" id="footer-banner"></footer>
+
+    <!-- 身份选择弹窗（creating） -->
+    <div class="modal-overlay" id="creating-modal" style="display:none">
+        <div class="modal-panel">
+            <div class="modal-section">
+                <h3 class="modal-section-title">选择身份</h3>
+                <select class="settings-input" id="role-select">
+                    <option value="">请选择身份</option>
+                </select>
+            </div>
+            <div class="modal-section">
+                <h3 class="modal-section-title">数量</h3>
+                <div class="stepper">
+                    <button class="stepper-btn" id="role-qty-minus">−</button>
+                    <span class="stepper-value" id="role-qty">1</span>
+                    <button class="stepper-btn" id="role-qty-plus">+</button>
+                </div>
+            </div>
+            <div class="role-select-desc" id="role-desc">请选择一个身份查看说明</div>
+            <div class="modal-row-actions">
+                <button class="modal-btn modal-btn-cancel" id="modal-cancel">取消</button>
+                <button class="modal-btn modal-btn-save" id="modal-confirm">确认添加</button>
+            </div>
         </div>
     </div>
-    <footer class="footer-banner"></footer>
+
+    <!-- 角色编辑弹窗（rolepool） -->
+    <div class="modal-overlay" id="rolepool-modal" style="display:none">
+        <div class="modal-panel">
+            <div class="modal-row modal-row-top">
+                <div class="modal-avatar-upload" id="modal-avatar-upload">
+                    <img id="modal-avatar-preview" src="" alt="">
+                    <input type="file" id="modal-avatar-input" accept="image/*" style="display:none">
+                    <div class="modal-avatar-placeholder">点击上传头像</div>
+                </div>
+                <div class="modal-fields">
+                    <input class="modal-field-input" id="modal-name" type="text" placeholder="请输入角色姓名">
+                    <input class="modal-field-input" id="modal-sex" type="text" placeholder="男 / 女">
+                    <input class="modal-field-input" id="modal-age" type="number" placeholder="请输入年龄">
+                </div>
+            </div>
+            <div class="modal-section">
+                <textarea class="modal-textarea" id="modal-desc" placeholder="请输入角色的背景故事和性格特征"></textarea>
+            </div>
+            <div class="modal-section">
+                <div class="modal-field">
+                    <input class="modal-field-input" id="modal-endpoint" type="text"
+                        placeholder="https://api.openai.com/v1">
+                    <button class="modal-field-button" id="modal-check-balance">查询余额</button>
+                </div>
+                <div class="modal-field">
+                    <input class="modal-field-input" id="modal-key" type="text" placeholder="请输入API密钥">
+                    <button class="modal-field-button" id="modal-get-api-key">获取密钥</button>
+                </div>
+                <div class="modal-field">
+                    <input class="modal-field-input" id="modal-model" type="text" placeholder="请输入模型名称">
+                    <button class="modal-field-button" id="modal-test-model">测试模型</button>
+                </div>
+            </div>
+            <div class="modal-row-actions">
+                <button class="modal-btn modal-btn-save" id="modal-save">保存角色</button>
+                <button class="modal-btn modal-btn-delete" id="modal-delete" disabled>删除角色</button>
+            </div>
+        </div>
+    </div>
+
     <script src="/static/script/jquery.min.js"></script>
     <script src="/static/script/toastr.min.js"></script>
     <script src="/static/script/global.min.js"></script>
-    <script src="/index.js"></script>
-
+    <script src="index.js"></script>
 </body>
 
 </html>

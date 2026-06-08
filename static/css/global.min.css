@@ -56,7 +56,7 @@ body {
     background: var(--bg-night);
     color: var(--text-main);
     font-family: var(--font-body);
-    overflow-x: hidden;
+    overflow: hidden;
 }
 
 /* ══════════════════════════════════════
