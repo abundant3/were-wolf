@@ -1568,6 +1568,20 @@ select.settings-input option {
     border: 1px solid rgba(255, 255, 255, 0.05);
 }
 
+.player-card-seat {
+    width: 28px;
+    height: 28px;
+    border-radius: 50%;
+    background: rgba(255, 255, 255, 0.08);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 12px;
+    font-weight: bold;
+    color: var(--text-soft);
+    flex-shrink: 0;
+}
+
 .player-card.player-self {
     border-color: rgba(255, 255, 255, 0.15);
     background: rgba(255, 255, 255, 0.06);

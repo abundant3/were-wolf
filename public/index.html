@@ -3,7 +3,8 @@
 
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, minimum-scale=1.0">
+    <meta name="viewport"
+        content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, minimum-scale=1.0">
     <title>狼人杀</title>
     <link rel="stylesheet" href="/static/css/toastr.min.css">
     <link rel="stylesheet" href="/static/css/global.min.css">
@@ -184,6 +185,14 @@
         <!-- ===== 房间详情 ===== -->
         <div data-view="meeting" style="display:none">
             <div class="view-container">
+                <div class="meeting-bar">
+                    <button class="meeting-bar-btn" data-panel="characters">会议角色</button>
+                    <button class="meeting-bar-btn" data-panel="identities">会议身份</button>
+                    <button class="meeting-bar-btn" data-panel="events">会议事件</button>
+                    <button class="meeting-bar-btn" data-panel="detail">会议详情</button>
+                </div>
+                <div class="meeting-messages" id="meeting-messages"></div>
+                <div class="meeting-panel" id="meeting-panel" style="display:none"></div>
             </div>
         </div>
 
@@ -257,9 +266,24 @@
         </div>
     </div>
 
+    <div id="footer-templates" style="display:none">
+        <div data-footer-tpl="creating">
+            <button class="footer-action-btn" data-footer="back">返回</button>
+            <button class="footer-action-btn" data-footer="start">开始游戏</button>
+        </div>
+        <div data-footer-tpl="rolepool">
+            <button class="footer-action-btn" data-footer="sync">同步角色</button>
+            <button class="footer-action-btn" data-footer="create">创建角色</button>
+        </div>
+        <div data-footer-tpl="meeting">
+            <input class="footer-chat-input" id="meeting-chat-input" type="text" placeholder="输入消息..." maxlength="100">
+            <button class="footer-chat-send" data-footer="send">发送</button>
+            <button class="footer-chat-send" data-footer="continue">继续</button>
+        </div>
+    </div>
+
     <script src="/static/script/jquery.min.js"></script>
     <script src="/static/script/toastr.min.js"></script>
-    <script src="/static/script/global.min.js"></script>
     <script src="index.js"></script>
 </body>
 

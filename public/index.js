@@ -1,4 +1,146 @@
 /* ══════════════════════════════════════
+   § 全局配置
+   ══════════════════════════════════════ */
+
+var settingsKey = 'settings';
+var backgroundAudioControl = null;
+var backgroundAudioPath = '/static/audio/画音工作室-子鹤.mp3';
+
+var settings = {
+    backgroundAudio: 0,
+    soundEffectAudio: 0,
+    notificationAudio: 0,
+    endpointAddress: '',
+    endpointKey: '',
+    defaultModel: ''
+};
+
+var roleList = [];
+
+document.addEventListener('DOMContentLoaded', async function () {
+    await configToastr();
+    await loadSettings();
+    bindGlobalEvents();
+    window.addEventListener('hashchange', function () {
+        switchView(getViewFromHash());
+    });
+    switchView(getViewFromHash());
+});
+
+document.addEventListener('click', async function () {
+    await playBackgroundAudio();
+});
+
+async function configToastr() {
+    toastr.options = {
+        closeButton: false,
+        debug: false,
+        newestOnTop: false,
+        progressBar: false,
+        positionClass: "toast-top-center",
+        preventDuplicates: false,
+        onclick: null,
+        showDuration: 300,
+        hideDuration: 1000,
+        timeOut: 2000,
+        extendedTimeOut: 1000,
+        showEasing: "swing",
+        hideEasing: "linear",
+        showMethod: "fadeIn",
+        hideMethod: "fadeOut"
+    };
+}
+
+async function loadSettings() {
+    try {
+        var raw = localStorage.getItem(settingsKey);
+        if (!raw) return;
+        var loadedSettings = JSON.parse(raw);
+        settings.backgroundAudio = loadedSettings.backgroundAudio || 0;
+        settings.soundEffectAudio = loadedSettings.soundEffectAudio || 0;
+        settings.notificationAudio = loadedSettings.notificationAudio || 0;
+        settings.endpointAddress = loadedSettings.endpointAddress || 'https://mixed.strai.life';
+        settings.endpointKey = loadedSettings.endpointKey || 'sk-HALdMZeiRaLWhv2HoRZ1dhAnMNrE7Svz0wWg7kkCsJbzJsn9';
+        settings.defaultModel = loadedSettings.defaultModel || '[ais]gemini-3.5-flash';
+        return true;
+    } catch (error) {
+        return false;
+    }
+}
+
+async function saveSettings() {
+    try {
+        localStorage.setItem(settingsKey, JSON.stringify(settings));
+        return true;
+    } catch (error) {
+        return false;
+    }
+}
+
+function ensureAudioElement() {
+    if (backgroundAudioControl) return;
+    backgroundAudioControl = document.createElement('audio');
+    backgroundAudioControl.id = 'bg-audio-player';
+    backgroundAudioControl.loop = true;
+    backgroundAudioControl.preload = 'auto';
+    backgroundAudioControl.setAttribute('playsinline', '');
+    backgroundAudioControl.setAttribute('webkit-playsinline', '');
+    backgroundAudioControl.src = encodeURI(backgroundAudioPath);
+    document.body.appendChild(backgroundAudioControl);
+}
+
+async function setBackgroundAudioVolume(volume) {
+    var vol = Math.max(0, Math.min(1, volume));
+    settings.backgroundAudio = vol;
+    ensureAudioElement();
+    backgroundAudioControl.volume = vol;
+    await saveSettings();
+    if (vol > 0) {
+        try {
+            await backgroundAudioControl.play();
+            if ('mediaSession' in navigator) {
+                navigator.mediaSession.metadata = new MediaMetadata({
+                    title: '狼人杀',
+                    artist: '画音工作室-子鹤'
+                });
+                navigator.mediaSession.playbackState = 'playing';
+            }
+        } catch (e) {}
+    } else {
+        if (!backgroundAudioControl.paused) {
+            backgroundAudioControl.pause();
+            if ('mediaSession' in navigator) {
+                navigator.mediaSession.playbackState = 'paused';
+            }
+        }
+    }
+}
+
+async function playBackgroundAudio() {
+    ensureAudioElement();
+    if (settings.backgroundAudio > 0) {
+        backgroundAudioControl.volume = Math.max(0, Math.min(1, settings.backgroundAudio));
+        try {
+            await backgroundAudioControl.play();
+            if ('mediaSession' in navigator) {
+                navigator.mediaSession.metadata = new MediaMetadata({
+                    title: '狼人杀',
+                    artist: '画音工作室-子鹤'
+                });
+                navigator.mediaSession.playbackState = 'playing';
+            }
+        } catch (e) {}
+    } else {
+        if (!backgroundAudioControl.paused) {
+            backgroundAudioControl.pause();
+            if ('mediaSession' in navigator) {
+                navigator.mediaSession.playbackState = 'paused';
+            }
+        }
+    }
+}
+
+/* ══════════════════════════════════════
    § 路由管理
    ══════════════════════════════════════ */
 
@@ -11,14 +153,7 @@ var VIEW_TITLES = {
     meeting: ''
 };
 
-var FOOTER_CONFIG = {
-    home: null,
-    creating: '<button class="footer-action-btn" data-footer="back">返回</button><button class="footer-action-btn" data-footer="start">开始游戏</button>',
-    rolepool: '<button class="footer-action-btn" data-footer="sync">同步角色</button><button class="footer-action-btn" data-footer="create">创建角色</button>',
-    settings: null,
-    savepool: null,
-    meeting: '<input class="footer-chat-input" id="meeting-chat-input" type="text" placeholder="输入消息..." maxlength="100"><button class="footer-chat-send" data-footer="send">发送</button><button class="footer-chat-send" data-footer="continue">继续</button>'
-};
+var FOOTER_TPL_VIEWS = { creating: true, rolepool: true, meeting: true };
 
 var currentView = null;
 var headerTitle = document.querySelector('.header-banner-title');
@@ -56,8 +191,9 @@ function switchView(view) {
         headerTitle.classList.remove('value-title');
     }
 
-    if (FOOTER_CONFIG[view]) {
-        footerBanner.innerHTML = FOOTER_CONFIG[view];
+    if (FOOTER_TPL_VIEWS[view]) {
+        var tpl = document.querySelector('[data-footer-tpl="' + view + '"]');
+        footerBanner.innerHTML = tpl ? tpl.innerHTML : '';
         footerBanner.classList.add('footer-actions');
     } else {
         footerBanner.innerHTML = '';
@@ -73,14 +209,6 @@ function switchView(view) {
 function capitalize(s) {
     return s.charAt(0).toUpperCase() + s.slice(1);
 }
-
-document.addEventListener('DOMContentLoaded', function () {
-    bindGlobalEvents();
-    window.addEventListener('hashchange', function () {
-        switchView(getViewFromHash());
-    });
-    switchView(getViewFromHash());
-});
 
 function bindGlobalEvents() {
     document.querySelector('.content-container').addEventListener('click', function (e) {
@@ -871,6 +999,21 @@ window.viewMeeting = {
         }
     },
     destroy: function () {
+        var container = document.querySelector('[data-view="meeting"] .view-container');
+        if (container) container.removeEventListener('click', _mt.bound.barClick);
+        var msgs = document.getElementById('meeting-messages');
+        if (msgs) {
+            msgs.removeEventListener('touchstart', _mt.bound.touchStart);
+            msgs.removeEventListener('touchmove', _mt.bound.touchMove);
+            msgs.removeEventListener('touchend', _mt.bound.touchEnd);
+            msgs.removeEventListener('click', _mt.bound.deleteClick);
+        }
+        $('#meeting-panel').off('click', _mt.bound.revealClick);
+        $('#meeting-room-name').off('change', _mt.bound.nameChange);
+        $('#meeting-player-name').off('change', _mt.bound.playerNameChange);
+        $('#meeting-chat-input').off('keydown', _mt.bound.chatKeydown);
+        $('[data-footer="send"]').off('click', _mt.bound.sendClick);
+        $('.mention-list').off('click', _mt.bound.mentionClick).remove();
         _mt.bound = {};
         _mt.room = null;
     }
@@ -882,25 +1025,20 @@ function renderMeeting(room) {
     headerTitle.classList.add('value-title');
 
     var container = document.querySelector('[data-view="meeting"] .view-container');
-    container.innerHTML =
-        '<div class="meeting-bar">' +
-            '<button class="meeting-bar-btn" data-panel="characters">会议角色</button>' +
-            '<button class="meeting-bar-btn" data-panel="identities">会议身份</button>' +
-            '<button class="meeting-bar-btn" data-panel="events">会议事件</button>' +
-            '<button class="meeting-bar-btn" data-panel="detail">会议详情</button>' +
-        '</div>' +
-        '<div class="meeting-messages" id="meeting-messages"></div>' +
-        '<div class="meeting-panel" id="meeting-panel" style="display:none"></div>';
+    container.removeEventListener('click', _mt.bound.barClick);
+
+    document.querySelectorAll('.meeting-bar-btn').forEach(function (b) { b.classList.remove('active'); });
+    _mt.activePanel = null;
+
+    var panel = $('#meeting-panel');
+    panel.hide().empty();
 
     renderMessages(room);
 
-    container.removeEventListener('click', _mt.bound.barClick);
-    _mt.activePanel = null;
     _mt.bound.barClick = function (e) {
         var btn = e.target.closest('.meeting-bar-btn');
         if (!btn) {
-            var panel = document.getElementById('meeting-panel');
-            if (panel && !panel.contains(e.target)) {
+            if (panel.length && !panel[0].contains(e.target)) {
                 closeMeetingPanel();
             }
             return;
@@ -918,17 +1056,15 @@ function renderMeeting(room) {
 }
 
 function closeMeetingPanel() {
-    var panel = document.getElementById('meeting-panel');
-    if (panel) panel.style.display = 'none';
+    $('#meeting-panel').hide();
     document.querySelectorAll('.meeting-bar-btn').forEach(function (b) { b.classList.remove('active'); });
     _mt.activePanel = null;
-    var msgs = document.getElementById('meeting-messages');
-    if (msgs) msgs.style.display = '';
+    $('#meeting-messages').show();
 }
 
 function showMeetingPanel(type, room) {
-    var panel = document.getElementById('meeting-panel');
-    if (!panel) return;
+    var $panel = $('#meeting-panel');
+    if (!$panel.length) return;
     _mt.activePanel = type;
 
     var html = '';
@@ -942,27 +1078,25 @@ function showMeetingPanel(type, room) {
         html = buildEventsPanel(room);
     }
 
-    panel.innerHTML = html;
-    panel.style.display = html ? '' : 'none';
+    if (html) {
+        $panel.html(html).show();
+    } else {
+        $panel.hide();
+    }
 
-    var msgs = document.getElementById('meeting-messages');
-    if (msgs) msgs.style.display = 'none';
+    $('#meeting-messages').hide();
 
     if (type === 'characters') {
-        panel.removeEventListener('click', _mt.bound.revealClick);
+        $panel.off('click', _mt.bound.revealClick);
         _mt.bound.revealClick = function (e) {
             var btn = e.target.closest('.player-identity-reveal');
             if (!btn) return;
             var card = btn.closest('.player-card');
-            var mask = card.querySelector('.identity-mask');
-            var real = card.querySelector('.identity-real');
-            if (mask && real) {
-                mask.style.display = 'none';
-                real.style.display = '';
-                btn.style.display = 'none';
-            }
+            $(card).find('.identity-mask').hide();
+            $(card).find('.identity-real').show();
+            $(btn).hide();
         };
-        panel.addEventListener('click', _mt.bound.revealClick);
+        $panel.on('click', _mt.bound.revealClick);
     }
 
     if (type === 'detail') {
@@ -976,7 +1110,7 @@ function showMeetingPanel(type, room) {
                     saveRoom(room);
                 }
             };
-            nameInput.addEventListener('change', _mt.bound.nameChange);
+            $(nameInput).on('change', _mt.bound.nameChange);
         }
         var playerInput = document.getElementById('meeting-player-name');
         if (playerInput && room.players) {
@@ -988,7 +1122,7 @@ function showMeetingPanel(type, room) {
                     saveRoom(room);
                 }
             };
-            playerInput.addEventListener('change', _mt.bound.playerNameChange);
+            $(playerInput).on('change', _mt.bound.playerNameChange);
         }
     }
 }
@@ -996,7 +1130,7 @@ function showMeetingPanel(type, room) {
 function buildCharactersPanel(room) {
     if (!room.players || room.players.length === 0) return '<div class="meeting-empty">暂无玩家</div>';
     var html = '<div class="player-list">';
-    room.players.forEach(function (p) {
+    room.players.forEach(function (p, idx) {
         var def = ROLES.find(function (d) { return d.id === p.identityId; });
         var campClass = def ? def.camp : '';
         var userClass = p.isUser ? ' player-self' : '';
@@ -1017,6 +1151,7 @@ function buildCharactersPanel(room) {
                 '<span class="identity-real player-card-identity ' + campClass + '" style="display:none">' + (def ? def.name : '未知') + '</span>';
         }
         html += '<div class="player-card' + userClass + '">' +
+            '<span class="player-card-seat">P' + (idx + 1) + '</span>' +
             '<div class="player-card-avatar">' + avatarHtml + '</div>' +
             '<div class="player-card-info">' +
                 '<span class="player-card-name">' + p.name + (p.isUser ? '（你）' : '') + '</span>' +
@@ -1104,17 +1239,17 @@ function addRoomEvent(day, phase, text) {
     room.events.push({ day: day, phase: phase, text: text, time: Date.now() });
     saveRoom(room).then(function () {
         if (_mt.activePanel === 'events') {
-            var panel = document.getElementById('meeting-panel');
-            if (panel) panel.innerHTML = buildEventsPanel(room);
+            var $panel = $('#meeting-panel');
+            if ($panel.length) $panel.html(buildEventsPanel(room));
         }
     });
 }
 
 function renderMessages(room) {
-    var container = document.getElementById('meeting-messages');
-    if (!container) return;
+    var $container = $('#meeting-messages');
+    if (!$container.length) return;
     if (!room.messages || room.messages.length === 0) {
-        container.innerHTML = '';
+        $container.empty();
         return;
     }
     var html = '';
@@ -1129,9 +1264,9 @@ function renderMessages(room) {
             '<div class="chat-msg-delete">删除</div>' +
         '</div>';
     });
-    container.innerHTML = html;
-    container.scrollTop = container.scrollHeight;
-    bindSwipeDelete(container, room);
+    $container.html(html);
+    $container[0].scrollTop = $container[0].scrollHeight;
+    bindSwipeDelete($container[0], room);
 }
 
 function addMessage(name, text) {
@@ -1225,10 +1360,10 @@ function bindSwipeDelete(container, room) {
 }
 
 function bindChatInput() {
-    var input = document.getElementById('meeting-chat-input');
-    var sendBtn = document.querySelector('[data-footer="send"]');
-    var footer = document.getElementById('footer-banner');
-    if (!input || !sendBtn || !footer) return;
+    var $input = $('#meeting-chat-input');
+    var $sendBtn = $('[data-footer="send"]');
+    var $footer = $('#footer-banner');
+    if (!$input.length || !$sendBtn.length || !$footer.length) return;
 
     var room = _mt.room;
     if (!room || !room.players) return;
@@ -1240,40 +1375,39 @@ function bindChatInput() {
     others.forEach(function (p) {
         listHtml += '<span class="mention-tag" data-name="' + p.name + '">' + p.name + '</span>';
     });
-    var mentionRow = document.createElement('div');
-    mentionRow.className = 'mention-list';
-    mentionRow.innerHTML = listHtml;
-    footer.insertBefore(mentionRow, footer.firstChild);
+    var $mentionRow = $('<div class="mention-list">' + listHtml + '</div>');
+    $footer.prepend($mentionRow);
 
     _mt.bound.mentionClick = function (e) {
-        var tag = e.target.closest('.mention-tag');
-        if (!tag) return;
-        var name = tag.getAttribute('data-name');
-        var val = input.value;
-        var pos = input.selectionStart || val.length;
+        var $tag = $(e.target).closest('.mention-tag');
+        if (!$tag.length) return;
+        var name = $tag.data('name');
+        var val = $input.val();
+        var pos = $input[0].selectionStart || val.length;
         var before = val.substring(0, pos);
         var after = val.substring(pos);
         if (before.length > 0 && before.charAt(before.length - 1) !== ' ') before += ' ';
-        input.value = before + '@' + name + ' ' + after;
-        input.focus();
+        $input.val(before + '@' + name + ' ' + after);
+        $input.focus();
     };
-    mentionRow.addEventListener('click', _mt.bound.mentionClick);
+    $mentionRow.on('click', _mt.bound.mentionClick);
 
+    var inputEl = $input[0];
     function sendMessage() {
-        var text = input.value.trim();
+        var text = $input.val().trim();
         if (!text) return;
-        input.value = '';
+        $input.val('');
         var user = room.players.find(function (p) { return p.isUser; });
         addMessage(user ? user.name : '玩家', text);
     }
 
     _mt.bound.sendClick = sendMessage;
-    sendBtn.addEventListener('click', _mt.bound.sendClick);
+    $sendBtn.on('click', _mt.bound.sendClick);
 
     _mt.bound.chatKeydown = function (e) {
         if (e.key === 'Enter') sendMessage();
     };
-    input.addEventListener('keydown', _mt.bound.chatKeydown);
+    $input.on('keydown', _mt.bound.chatKeydown);
 }
 
 
