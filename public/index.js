@@ -446,15 +446,17 @@ function bindCreatingEvents() {
             });
             identityPool = shuffleArray(identityPool);
 
-            var players = [{ id: 'player-user', name: playerName, isUser: true, identityId: identityPool[0] }];
+            var players = [];
             for (var i = 0; i < picked.length; i++) {
                 players.push({
                     id: picked[i].id,
                     name: picked[i].name,
                     character: picked[i],
-                    identityId: identityPool[i + 1]
+                    identityId: identityPool[i]
                 });
             }
+            var userSeat = Math.floor(Math.random() * (picked.length + 1));
+            players.splice(userSeat, 0, { id: 'player-user', name: playerName, isUser: true, identityId: identityPool[picked.length] });
 
             var config = {
                 id: generateRoomId(),
