@@ -234,8 +234,10 @@ function bindGlobalEvents() {
 
 var ROLES = [
     { id: 'werewolf', name: '狼人', camp: 'wolf', icon: '狼', desc: '每晚可以杀害一名玩家，与其他狼人共同行动。' },
+    { id: 'wolfking', name: '狼王', camp: 'wolf', icon: '狼王', desc: '参与刀人环节。白天被动致死（投死、枪杀等，非女巫毒杀）时可被动带走一名玩家，被带走者无遗言。' },
+    { id: 'whitewolfking', name: '白狼王', camp: 'wolf', icon: '白狼', desc: '参与刀人环节。白天可随时主动自爆并带走一名玩家，被带走者无遗言。但被动死亡不能发动技能。' },
     { id: 'villager', name: '村民', camp: 'good', icon: '村', desc: '没有特殊能力，依靠推理和投票找出狼人。' },
-    { id: 'seer', name: '预言家', camp: 'good', icon: '预', desc: '每晚可以查验一名玩家的身份。' },
+    { id: 'seer', name: '预言家', camp: 'good', icon: '预', desc: '每晚可以查验一名玩家的阵营。' },
     { id: 'witch', name: '女巫', camp: 'good', icon: '女', desc: '拥有一瓶解药和一瓶毒药，各限用一次。' },
     { id: 'hunter', name: '猎人', camp: 'good', icon: '猎', desc: '死亡时可以开枪带走一名玩家。' },
     { id: 'guard', name: '守卫', camp: 'good', icon: '守', desc: '每晚可以守护一名玩家免受狼人袭击，不能连续守同一人。' },
@@ -249,8 +251,15 @@ var MODE_DESC = {
 };
 
 var _c = {
-    playerCount: 9,
-    selectedRoles: [],
+    playerCount: 12,
+    selectedRoles: [
+        { id: 'werewolf', qty: 4 },
+        { id: 'seer', qty: 1 },
+        { id: 'witch', qty: 1 },
+        { id: 'guard', qty: 1 },
+        { id: 'hunter', qty: 1 },
+        { id: 'villager', qty: 4 }
+    ],
     gameMode: 'beginner',
     modalQty: 1,
     bound: {}
@@ -984,18 +993,1385 @@ function formatTime(ts) {
 
 
 /* ══════════════════════════════════════
+   § Game Engine - 游戏引擎
+   ══════════════════════════════════════ */
+
+var WOLF_IDS = ['werewolf', 'wolfking', 'whitewolfking'];
+var GOD_IDS = ['seer', 'witch', 'hunter', 'guard', 'idiot', 'cupid'];
+var VILLAGER_ID = 'villager';
+
+var pendingHumanAction = null;
+
+function isWolf(identityId) { return WOLF_IDS.indexOf(identityId) >= 0; }
+function isGod(identityId) { return GOD_IDS.indexOf(identityId) >= 0; }
+function isVillager(identityId) { return identityId === VILLAGER_ID; }
+
+function getPlayerById(room, id) {
+    if (!room.players) return null;
+    return room.players.find(function (p) { return p.id === id; });
+}
+
+function getAlivePlayers(room) {
+    var gs = room.gameState;
+    if (!gs) return [];
+    return room.players.filter(function (p) { return gs.players[p.id] && gs.players[p.id].alive; });
+}
+
+function getAliveWolves(room) {
+    return getAlivePlayers(room).filter(function (p) { return isWolf(p.identityId); });
+}
+
+function getAliveGods(room) {
+    return getAlivePlayers(room).filter(function (p) { return isGod(p.identityId); });
+}
+
+function getAliveVillagers(room) {
+    return getAlivePlayers(room).filter(function (p) { return isVillager(p.identityId); });
+}
+
+function findPlayerByIdentity(room, identityId) {
+    return getAlivePlayers(room).find(function (p) { return p.identityId === identityId; });
+}
+
+function findPlayersByCamp(room, campCheck) {
+    return getAlivePlayers(room).filter(function (p) { return campCheck(p.identityId); });
+}
+
+function initGameState(room) {
+    var gs = { phase: 'idle', day: 0, subPhase: null, players: {} };
+    room.players.forEach(function (p) {
+        gs.players[p.id] = {
+            alive: true, canVote: true,
+            isIdiotRevealed: false,
+            witchHealUsed: false, witchPoisonUsed: false,
+            seerChecks: [],
+            privateThoughts: [],
+            lastWordsSpoken: false
+        };
+    });
+    gs.night = { guardTarget: null, lastGuardTarget: null, wolfTarget: null, witchHeal: false, witchPoison: null, seerTarget: null, seerResult: null, cupidTargets: [] };
+    gs.lovers = [];
+    gs.dayVotes = {};
+    gs.winner = null;
+    room.gameState = gs;
+}
+
+function saveGameState(room) {
+    return saveRoom(room);
+}
+
+var ACTION_TIMEOUT = 30000; // 30 seconds
+var _timer = { interval: null, remaining: 0 };
+
+function waitForHumanAction() {
+    return new Promise(function (resolve) { pendingHumanAction = { resolve: resolve }; });
+}
+
+function withTimeout(promise, ms) {
+    var timeout = new Promise(function (resolve) {
+        setTimeout(function () { resolve('__timeout__'); }, ms);
+    });
+    return Promise.race([promise, timeout]);
+}
+
+function startCountdown(ms, $container) {
+    clearCountdown();
+    _timer.remaining = Math.ceil(ms / 1000);
+    var $timer = $container.find('.action-timer');
+    if (!$timer.length) {
+        $container.prepend('<div class="action-timer"></div>');
+        $timer = $container.find('.action-timer');
+    }
+    $timer.text(_timer.remaining + 's');
+    _timer.interval = setInterval(function () {
+        _timer.remaining--;
+        if (_timer.remaining <= 0) {
+            clearCountdown();
+            $timer.text('0s');
+            return;
+        }
+        $timer.text(_timer.remaining + 's');
+    }, 1000);
+}
+
+function clearCountdown() {
+    if (_timer.interval) { clearInterval(_timer.interval); _timer.interval = null; }
+    $('.action-timer').remove();
+}
+
+function queryAI(character, systemPrompt, userPrompt) {
+    var endpoint = (character && character.endpoint) || settings.endpointAddress;
+    var key = (character && character.key) || settings.endpointKey;
+    var model = (character && character.model) || settings.defaultModel;
+    if (!endpoint || !key || !model) return Promise.resolve('');
+    var controller = new AbortController();
+    var timeout = setTimeout(function () { controller.abort(); }, ACTION_TIMEOUT);
+    return fetch(endpoint + '/v1/chat/completions', {
+        method: 'POST',
+        signal: controller.signal,
+        headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + key },
+        body: JSON.stringify({
+            model: model, temperature: 0.8,
+            messages: [
+                { role: 'system', content: systemPrompt },
+                { role: 'user', content: userPrompt }
+            ]
+        })
+    }).then(function (r) { return r.json(); }).then(function (d) {
+        clearTimeout(timeout);
+        return (d.choices && d.choices[0] && d.choices[0].message && d.choices[0].message.content) || '';
+    }).catch(function () {
+        clearTimeout(timeout);
+        return '';
+    });
+}
+
+function getRecentPublicMessages(room) {
+    if (!room.messages || !room.messages.length) return '';
+    return room.messages.map(function (m) {
+        return m.name + '说：' + m.text;
+    }).join('\n');
+}
+
+function getPrivateThoughtsText(room, playerId) {
+    var ps = room.gameState.players[playerId];
+    if (!ps || !ps.privateThoughts || !ps.privateThoughts.length) return '';
+    return ps.privateThoughts.map(function (t) {
+        return '[第' + t.day + '天' + (t.phase === 'night' ? '夜' : '日') + '·' + t.action + '] ' + t.text;
+    }).join('\n');
+}
+
+function queryAIWithContext(room, player, systemPrompt, userPrompt) {
+    var gs = room.gameState;
+    var character = player.character;
+    var endpoint = (character && character.endpoint) || settings.endpointAddress;
+    var key = (character && character.key) || settings.endpointKey;
+    var model = (character && character.model) || settings.defaultModel;
+    if (!endpoint || !key || !model) return Promise.resolve('');
+
+    var messages = [];
+    messages.push({ role: 'system', content: systemPrompt });
+
+    // Inject room info
+    var roomInfo = '【房间信息】\n房间人数：' + room.players.length + '人\n';
+    var identityCounts = {};
+    room.players.forEach(function (p) {
+        var def = ROLES.find(function (r) { return r.id === p.identityId; });
+        var name = def ? def.name : p.identityId;
+        identityCounts[name] = (identityCounts[name] || 0) + 1;
+    });
+    var identityList = Object.keys(identityCounts).map(function (k) { return k + '×' + identityCounts[k]; }).join('、');
+    roomInfo += '身份配置：' + identityList;
+    messages.push({ role: 'user', content: roomInfo });
+    messages.push({ role: 'assistant', content: '我已了解房间配置。' });
+
+    var thoughtsText = getPrivateThoughtsText(room, player.id);
+    if (thoughtsText) {
+        messages.push({ role: 'user', content: '【你的私密记忆】\n' + thoughtsText });
+        messages.push({ role: 'assistant', content: '我已回忆起之前的想法，会在此基础上继续思考和行动。' });
+    }
+
+    var contextParts = [];
+    var publicText = getRecentPublicMessages(room, 20);
+    if (room.events && room.events.length) {
+        var evts = room.events.slice(-10).map(function (e) {
+            return '第' + e.day + '天' + (e.phase === 'night' ? '夜' : '日') + '：' + e.text;
+        }).join('\n');
+        if (evts) contextParts.push('【近期事件】\n' + evts);
+    }
+    if (publicText) contextParts.push('【公开聊天记录】\n' + publicText);
+    if (contextParts.length > 0) {
+        messages.push({ role: 'user', content: contextParts.join('\n\n') });
+        messages.push({ role: 'assistant', content: '我已了解以上公开信息。' });
+    }
+
+    messages.push({ role: 'user', content: userPrompt });
+
+    var controller = new AbortController();
+    var timeout = setTimeout(function () { controller.abort(); }, ACTION_TIMEOUT);
+    return fetch(endpoint + '/v1/chat/completions', {
+        method: 'POST',
+        signal: controller.signal,
+        headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + key },
+        body: JSON.stringify({ model: model, temperature: 0.8, messages: messages })
+    }).then(function (r) { return r.json(); }).then(function (d) {
+        clearTimeout(timeout);
+        return (d.choices && d.choices[0] && d.choices[0].message && d.choices[0].message.content) || '';
+    }).catch(function () {
+        clearTimeout(timeout);
+        return '';
+    });
+}
+
+async function generateAndStoreThought(room, player, actionType, actionResult, phase) {
+    if (player.isUser) return;
+    var gs = room.gameState;
+    var ps = gs.players[player.id];
+    if (!ps) return;
+
+    var roleDef = ROLES.find(function (r) { return r.id === player.identityId; });
+    var roleName = roleDef ? roleDef.name : '未知';
+    var character = player.character;
+    var endpoint = (character && character.endpoint) || settings.endpointAddress;
+    var key = (character && character.key) || settings.endpointKey;
+    var model = (character && character.model) || settings.defaultModel;
+    if (!endpoint || !key || !model) return;
+
+    try {
+        var resp = await fetch(endpoint + '/v1/chat/completions', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + key },
+            body: JSON.stringify({
+                model: model, temperature: 1.0,
+                messages: [
+                    { role: 'system', content: '你是' + player.name + '，在狼人杀游戏中身份是' + roleName + '。' + (character ? character.desc : '') + '\n请简短写下你此刻的真实内心想法（1-2句话），包括你的真实意图、是否打算欺骗他人、策略考虑。这段内心独白只有你能看到。' },
+                    { role: 'user', content: '当前是第' + gs.day + '天的' + (phase === 'night' ? '夜晚' : '白天') + '。你刚完成了"' + actionType + '"行动。' + (actionResult ? '行动结果：' + actionResult + '。' : '') + '请用中文写下你此刻的真实内心想法。' }
+                ]
+            })
+        }).then(function (r) { return r.json(); }).then(function (d) {
+            return (d.choices && d.choices[0] && d.choices[0].message && d.choices[0].message.content) || '';
+        });
+
+        if (resp) {
+            if (!ps.privateThoughts) ps.privateThoughts = [];
+            ps.privateThoughts.push({ text: resp, day: gs.day, phase: phase || gs.phase, action: actionType, time: Date.now() });
+        }
+    } catch (e) { /* silently fail */ }
+}
+
+function parsePlayerName(response, candidates) {
+    if (!response) return null;
+    for (var i = 0; i < candidates.length; i++) {
+        if (response.indexOf(candidates[i].name) >= 0) return candidates[i].id;
+    }
+    return null;
+}
+
+function checkWinCondition(room) {
+    var gs = room.gameState;
+    if (getAliveWolves(room).length === 0) return 'good';
+    if (getAlivePlayers(room).filter(function (p) { return !isWolf(p.identityId); }).length === 0) return 'wolf';
+    return null;
+}
+
+function killPlayer(room, playerId, cause) {
+    var gs = room.gameState;
+    var ps = gs.players[playerId];
+    if (!ps || !ps.alive) return;
+    ps.alive = false;
+    ps.deathCause = cause;
+    var player = getPlayerById(room, playerId);
+    var day = gs.day;
+    var phaseText = gs.phase === 'night' || gs.subPhase ? '夜晚' : '白天';
+    if (cause === 'wolf') {
+        addRoomEvent(day, 'night', (player ? player.name : playerId) + '被狼人杀害');
+    } else if (cause === 'poison') {
+        addRoomEvent(day, 'night', (player ? player.name : playerId) + '被女巫毒杀');
+    } else if (cause === 'vote') {
+        addRoomEvent(day, 'day', (player ? player.name : playerId) + '被投票出局');
+    } else if (cause === 'shoot') {
+        addRoomEvent(day, 'day', (player ? player.name : playerId) + '被枪杀');
+    } else if (cause === 'lover') {
+        addRoomEvent(day, gs.phase === 'night' ? 'night' : 'day', (player ? player.name : playerId) + '因恋人死亡而殉情');
+    } else if (cause === 'selfdestruct') {
+        addRoomEvent(day, 'day', (player ? player.name : playerId) + '自爆');
+    }
+    if (gs.lovers && gs.lovers.length === 2) {
+        var otherIdx = gs.lovers.indexOf(playerId);
+        if (otherIdx >= 0) {
+            var otherId = gs.lovers[1 - otherIdx];
+            var otherPs = gs.players[otherId];
+            if (otherPs && otherPs.alive) {
+                setTimeout(function () { killPlayer(room, otherId, 'lover'); }, 0);
+            }
+        }
+    }
+}
+
+function resolveNight(room) {
+    var gs = room.gameState;
+    var night = gs.night;
+    var deaths = [];
+    var guarded = night.guardTarget;
+    var wolfed = night.wolfTarget;
+    var healed = night.witchHeal;
+    var poisoned = night.witchPoison;
+    if (wolfed) {
+        var tripleCollision = guarded === wolfed && healed;
+        if (guarded === wolfed && !healed) {
+            // guarded, no death from wolf
+        } else if (healed && guarded !== wolfed) {
+            // healed, no death
+        } else if (tripleCollision) {
+            deaths.push({ id: wolfed, cause: 'wolf' });
+        } else {
+            deaths.push({ id: wolfed, cause: 'wolf' });
+        }
+    }
+    if (poisoned) {
+        var alreadyDead = deaths.some(function (d) { return d.id === poisoned; });
+        if (!alreadyDead) {
+            deaths.push({ id: poisoned, cause: 'poison' });
+        }
+    }
+    night.lastGuardTarget = guarded || null;
+    deaths.forEach(function (d) { killPlayer(room, d.id, d.cause); });
+    if (deaths.length === 0) {
+        addRoomEvent(gs.day, 'night', '平安夜，无人死亡');
+    }
+    gs.night = { guardTarget: null, lastGuardTarget: night.lastGuardTarget, wolfTarget: null, witchHeal: false, witchPoison: null, seerTarget: null, seerResult: null, cupidTargets: [] };
+    return deaths;
+}
+
+/* ── Night Order (extensible) ── */
+var NIGHT_ORDER = [
+    { id: 'cupid', firstNightOnly: true, handler: 'runNightCupid', label: '丘比特', isCamp: false },
+    { id: 'guard', handler: 'runNightGuard', label: '守卫', isCamp: false },
+    { id: 'werewolf', handler: 'runNightWerewolf', label: '狼人', isCamp: 'wolf' },
+    { id: 'witch', handler: 'runNightWitch', label: '女巫', isCamp: false },
+    { id: 'seer', handler: 'runNightSeer', label: '预言家', isCamp: false },
+    { id: 'hunter', handler: 'runNightHunter', label: '猎人', isCamp: false },
+    { id: 'idiot', firstNightOnly: true, handler: 'runNightIdiot', label: '白痴', isCamp: false }
+];
+
+function isUserPhase(room) {
+    var gs = room.gameState;
+    var sub = gs.subPhase;
+    var user = room.players.find(function (p) { return p.isUser; });
+    if (!user || !gs.players[user.id] || !gs.players[user.id].alive) return false;
+    var entry = NIGHT_ORDER.find(function (e) { return e.id === sub; });
+    if (!entry) return false;
+    if (entry.isCamp === 'wolf') return isWolf(user.identityId);
+    return user.identityId === entry.id;
+}
+
+function updateContinueButton(room) {
+    var gs = room.gameState;
+    var $btn = $('[data-footer="continue"]');
+    if (!$btn.length) return;
+    $btn.prop('disabled', false);
+
+    if (gs.phase === 'idle') {
+        $btn.text('黑夜降临');
+    } else if (gs.phase === 'day-announce') {
+        $btn.text('轮流发言');
+    } else if (gs.phase === 'day-speech') {
+        $btn.text('开始发言');
+    } else if (gs.phase === 'day-vote') {
+        $btn.text('开始投票');
+    } else {
+        $btn.text('继续');
+    }
+}
+
+function stopAndRender(room) {
+    renderPhaseIndicator(room);
+    updateContinueButton(room);
+    rebindContinueButton(room);
+}
+
+function rebindContinueButton(room) {
+    var $btn = $('[data-footer="continue"]');
+    if (!$btn.length) return;
+    $btn.off('click').on('click', function () {
+        if (!room || !room.gameState) return;
+        $btn.prop('disabled', true).text('进行中...');
+        advancePhase(room).then(function () {
+            updateContinueButton(room);
+        });
+    });
+}
+
+async function advancePhase(room) {
+    var gs = room.gameState;
+    if (!gs) return;
+    var phase = gs.phase;
+    var sub = gs.subPhase;
+
+    if (phase === 'idle') return handleIdlePhase(room);
+    if (phase === 'night') {
+        if (sub === 'start') return handleNightStartPhase(room);
+        if (sub === 'done') return handleNightDonePhase(room);
+        return handleNightRolePhase(room);
+    }
+    if (phase === 'day-announce') return handleDayAnnouncePhase(room);
+    if (phase === 'day-speech') return handleDaySpeechPhase(room);
+    if (phase === 'day-vote') return handleDayVotePhase(room);
+    if (phase === 'game-over') return handleGameOverPhase(room);
+}
+
+async function handleIdlePhase(room) {
+    var gs = room.gameState;
+    gs.phase = 'night';
+    gs.day = 0;
+    gs.subPhase = 'start';
+    await advancePhase(room);
+}
+
+async function handleNightStartPhase(room) {
+    var gs = room.gameState;
+    addMessage('系统', '第' + gs.day + '天夜晚降临...');
+    var nextIdx = findNextNightIndex(room);
+    if (nextIdx < 0) {
+        gs.subPhase = 'done';
+        await advancePhase(room);
+        return;
+    }
+    gs.nightIndex = nextIdx;
+    gs.subPhase = NIGHT_ORDER[nextIdx].id;
+    await saveGameState(room);
+    await advancePhase(room);
+}
+
+async function handleNightRolePhase(room) {
+    var gs = room.gameState;
+    var entry = NIGHT_ORDER.find(function (e) { return e.id === gs.subPhase; });
+    if (!entry) return;
+    await executeNightAction(room, entry);
+    var nextIdx = findNextNightIndexFrom(room, gs.nightIndex + 1);
+    if (nextIdx < 0) {
+        gs.subPhase = 'done';
+        await saveGameState(room);
+        await advancePhase(room);
+        return;
+    }
+    gs.nightIndex = nextIdx;
+    gs.subPhase = NIGHT_ORDER[nextIdx].id;
+    await saveGameState(room);
+    await advancePhase(room);
+}
+
+async function handleNightDonePhase(room) {
+    var gs = room.gameState;
+    resolveNight(room);
+    await saveGameState(room);
+    gs.phase = 'day-announce';
+    gs.subPhase = null;
+    await advancePhase(room);
+}
+
+async function handleDayAnnouncePhase(room) {
+    var gs = room.gameState;
+    if (!gs._announced) {
+        renderDayAnnounce(room);
+        var winner = checkWinCondition(room);
+        if (winner) { gs.winner = winner; gs.phase = 'game-over'; await saveGameState(room); renderPhaseIndicator(room); renderGameOver(room); return; }
+        await handleDeathTriggers(room);
+        winner = checkWinCondition(room);
+        if (winner) { gs.winner = winner; gs.phase = 'game-over'; await saveGameState(room); renderPhaseIndicator(room); renderGameOver(room); return; }
+        await handleLastWords(room);
+        gs._announced = true;
+        await saveGameState(room);
+        stopAndRender(room);
+        return;
+    }
+    delete gs._announced;
+    gs.phase = 'day-speech';
+    gs.speechIndex = 0;
+    await saveGameState(room);
+    await advancePhase(room);
+}
+
+async function handleDaySpeechPhase(room) {
+    var gs = room.gameState;
+    await runDaySpeech(room);
+    gs.phase = 'day-vote';
+    await saveGameState(room);
+    stopAndRender(room);
+}
+
+async function handleDayVotePhase(room) {
+    var gs = room.gameState;
+    await runDayVote(room);
+    if (gs.phase === 'game-over') return;
+    await handleNextNightPhase(room);
+}
+
+async function handleNextNightPhase(room) {
+    var gs = room.gameState;
+    gs.phase = 'night';
+    gs.day++;
+    gs.subPhase = 'start';
+    await saveGameState(room);
+    await advancePhase(room);
+}
+
+async function handleGameOverPhase(room) {
+    renderGameOver(room);
+}
+
+function findNextNightIndex(room) {
+    return findNextNightIndexFrom(room, 0);
+}
+
+function findNextNightIndexFrom(room, startIdx) {
+    var gs = room.gameState;
+    for (var i = startIdx; i < NIGHT_ORDER.length; i++) {
+        var entry = NIGHT_ORDER[i];
+        if (entry.firstNightOnly && gs.day !== 0) continue;
+        if (entry.isCamp === 'wolf') {
+            if (getAliveWolves(room).length > 0) return i;
+        } else {
+            if (findPlayerByIdentity(room, entry.id)) return i;
+        }
+    }
+    return -1;
+}
+
+async function executeNightAction(room, entry) {
+    if (entry.isCamp === 'wolf') {
+        var wolves = getAliveWolves(room);
+        if (wolves.length > 0) await window[entry.handler](room, wolves);
+    } else {
+        var player = findPlayerByIdentity(room, entry.id);
+        if (player) await window[entry.handler](room, player);
+    }
+}
+
+async function handleDeathTriggers(room) {
+    var gs = room.gameState;
+    var deadPlayers = room.players.filter(function (p) {
+        var ps = gs.players[p.id];
+        return ps && !ps.alive && ps.deathCause && ps.deathCause !== 'poison';
+    });
+    for (var i = 0; i < deadPlayers.length; i++) {
+        var p = deadPlayers[i];
+        if (p.identityId === 'hunter' || p.identityId === 'wolfking') {
+            await runShootAbility(room, p);
+            delete gs.players[p.id].deathCause;
+        }
+    }
+}
+
+async function handleLastWords(room) {
+    var gs = room.gameState;
+    var dead = room.players.filter(function (p) {
+        var ps = gs.players[p.id];
+        return ps && !ps.alive && !ps.lastWordsSpoken;
+    });
+    if (dead.length === 0) return;
+    addMessage('系统', '— 遗言环节 —');
+    for (var i = 0; i < dead.length; i++) {
+        var p = dead[i];
+        if (p.isUser) {
+            addMessage('系统', p.name + '（已死亡），请发表遗言。');
+            showChatInput();
+            var $btn = $('[data-footer="continue"]');
+            $btn.text('遗言完毕').prop('disabled', false).off('click').on('click', function () {
+                hideChatInput();
+                $btn.prop('disabled', true).text('进行中...');
+                if (pendingHumanAction) {
+                    pendingHumanAction.resolve();
+                    pendingHumanAction = null;
+                }
+            });
+            await waitForHumanAction();
+        } else {
+            var resp = await generateAISpeech(room, p);
+            addMessage(p.name, '【遗言】' + (resp || '（沉默）'));
+        }
+        gs.players[p.id].lastWordsSpoken = true;
+        await saveGameState(room);
+    }
+}
+
+/* ── Night Action Handlers ── */
+
+async function runNightGuard(room, guard) {
+    var gs = room.gameState;
+    var candidates = getAlivePlayers(room).filter(function (p) { return p.id !== gs.night.lastGuardTarget; });
+    if (candidates.length === 0) return;
+    if (guard.isUser) {
+        renderNightAction(room, 'guard', candidates, null);
+        var result = await withTimeout(waitForHumanAction(), ACTION_TIMEOUT);
+        clearCountdown();
+        if (result !== '__timeout__') gs.night.guardTarget = result;
+        else addMessage('系统', '守卫超时，未守护任何人。');
+    } else {
+        renderNightWaiting(room, guard);
+        var aliveNames = candidates.map(function (p) { return p.name; }).join('、');
+        var lastInfo = gs.night.lastGuardTarget ? '（注意：不能连续守护' + getPlayerById(room, gs.night.lastGuardTarget).name + '）' : '';
+        var resp = await withTimeout(queryAIWithContext(room, guard,
+            '你是守卫。你的任务是每晚守护一名玩家使其免受狼人袭击。' + (guard.character ? guard.character.desc : ''),
+            '当前是第' + gs.day + '天夜晚。存活玩家：' + aliveNames + lastInfo + '。请选择你要守护的玩家名字，只回复名字。'), ACTION_TIMEOUT);
+        if (resp === '__timeout__' || !resp) {
+            gs.night.guardTarget = candidates[Math.floor(Math.random() * candidates.length)].id;
+        } else {
+            var parsed = parsePlayerName(resp, candidates);
+            gs.night.guardTarget = parsed || candidates[Math.floor(Math.random() * candidates.length)].id;
+        }
+        var guardTargetName = gs.night.guardTarget ? getPlayerById(room, gs.night.guardTarget).name : '无人';
+        await generateAndStoreThought(room, guard, '守护', '守护了' + guardTargetName, 'night');
+    }
+    hideNightAction();
+}
+
+async function runNightCupid(room, cupid) {
+    var gs = room.gameState;
+    var candidates = getAlivePlayers(room);
+    if (candidates.length < 2) return;
+    if (cupid.isUser) {
+        renderNightAction(room, 'cupid', candidates, null);
+        var result = await withTimeout(waitForHumanAction(), ACTION_TIMEOUT);
+        clearCountdown();
+        if (result !== '__timeout__' && Array.isArray(result)) {
+            gs.night.cupidTargets = result;
+            gs.lovers = result.slice();
+        } else {
+            var ids = [];
+            while (ids.length < 2) {
+                var r = candidates[Math.floor(Math.random() * candidates.length)].id;
+                if (ids.indexOf(r) < 0) ids.push(r);
+            }
+            gs.night.cupidTargets = ids;
+            gs.lovers = ids.slice();
+            addMessage('系统', '丘比特超时，系统随机分配恋人。');
+        }
+    } else {
+        renderNightWaiting(room, cupid);
+        var names = candidates.map(function (p) { return p.name; }).join('、');
+        var resp = await withTimeout(queryAIWithContext(room, cupid,
+            '你是丘比特。你在游戏开始时选择两名玩家成为恋人。恋人一方死亡时另一方也会殉情。' + (cupid.character ? cupid.character.desc : ''),
+            '请选择两名玩家作为恋人，只回复两个名字用逗号分隔。存活玩家：' + names), ACTION_TIMEOUT);
+        var ids = [];
+        if (resp && resp !== '__timeout__') {
+            candidates.forEach(function (p) { if (resp.indexOf(p.name) >= 0 && ids.length < 2) ids.push(p.id); });
+        }
+        while (ids.length < 2) {
+            var r = candidates[Math.floor(Math.random() * candidates.length)].id;
+            if (ids.indexOf(r) < 0) ids.push(r);
+        }
+        gs.night.cupidTargets = ids;
+        gs.lovers = ids.slice();
+        var loverNames = ids.map(function (id) { return getPlayerById(room, id).name; }).join('和');
+        await generateAndStoreThought(room, cupid, '连结恋人', '连结了' + loverNames, 'night');
+    }
+    hideNightAction();
+}
+
+async function runNightWerewolf(room, wolves) {
+    var gs = room.gameState;
+    gs.wolfMessages = [];
+    var targets = getAlivePlayers(room).filter(function (p) { return !isWolf(p.identityId); });
+    if (targets.length === 0) return;
+    var userWolf = wolves.find(function (w) { return w.isUser; });
+    var targetNames = targets.map(function (p) { return p.name; }).join('、');
+
+    // AI wolves discuss first (each generates a short tactic message)
+    var aiWolves = wolves.filter(function (w) { return !w.isUser; });
+    for (var i = 0; i < aiWolves.length; i++) {
+        var others = wolves.filter(function (w) { return w.id !== aiWolves[i].id; }).map(function (w) { return w.name; }).join('、');
+        var prevMsgs = gs.wolfMessages.map(function (m) { return m.name + '：' + m.text; }).join('\n');
+        var discussion = await withTimeout(queryAIWithContext(room, aiWolves[i],
+            '你是狼人，与' + others + '是队友。现在是夜间狼人密议环节，你们要讨论今晚的目标。' + (aiWolves[i].character ? '\n性格：' + aiWolves[i].character.desc : ''),
+            '第' + gs.day + '天夜晚。可刀目标：' + targetNames + '。' + (prevMsgs ? '\n之前的讨论：\n' + prevMsgs + '\n' : '') + '请简短发表你的看法，30字以内。只回复讨论内容。'), ACTION_TIMEOUT);
+        var msg = (discussion && discussion !== '__timeout__') ? discussion : '……';
+        gs.wolfMessages.push({ name: aiWolves[i].name, text: msg });
+    }
+
+    var votes = {};
+    if (userWolf) {
+        // Show wolf discussion panel + chat input for user
+        _mt.mentionFilter = 'wolf';
+        refreshMentionList(room);
+        renderWolfDiscussion(room, wolves, targets);
+        showChatInput();
+        // Wait for user to finish discussion
+        await waitForHumanAction();
+        hideChatInput();
+        _mt.mentionFilter = null;
+        refreshMentionList(room);
+        // Now show wolf vote UI
+        var wolfNames = wolves.filter(function (w) { return !w.isUser; }).map(function (w) { return w.name; }).join('、');
+        renderWolfVote(room, targets, wolfNames);
+        var result = await withTimeout(waitForHumanAction(), ACTION_TIMEOUT);
+        clearCountdown();
+        if (result !== '__timeout__' && result) votes[result] = 1;
+        // AI wolves also vote (1s interval)
+        var discussionText = gs.wolfMessages.map(function (m) { return m.name + '：' + m.text; }).join('\n');
+        for (var i = 0; i < aiWolves.length; i++) {
+            await new Promise(function (r) { setTimeout(r, 1000); });
+            var others = wolves.filter(function (w) { return w.id !== aiWolves[i].id; }).map(function (w) { return w.name; }).join('、');
+            var resp = await withTimeout(queryAIWithContext(room, aiWolves[i],
+                '你是狼人，与' + others + '是队友。你们每晚选择一名非狼玩家杀害，也可以选择空刀。' + (aiWolves[i].character ? aiWolves[i].character.desc : ''),
+                '第' + gs.day + '天夜晚。可刀目标：' + targetNames + '。\n狼人密议记录：\n' + discussionText + '\n请回复目标名字或"空刀"。'), ACTION_TIMEOUT);
+            if (resp && resp !== '__timeout__') {
+                var parsed = parsePlayerName(resp, targets);
+                if (parsed) votes[parsed] = (votes[parsed] || 0) + 1;
+            }
+        }
+    } else {
+        // AI wolves vote with discussion context
+        renderNightWaiting(room, wolves[0]);
+        for (var i = 0; i < wolves.length; i++) {
+            var others = wolves.filter(function (w) { return w.id !== wolves[i].id; }).map(function (w) { return w.name; }).join('、');
+            var discussionText = gs.wolfMessages.map(function (m) { return m.name + '：' + m.text; }).join('\n');
+            var resp = await withTimeout(queryAIWithContext(room, wolves[i],
+                '你是狼人，与' + others + '是队友。你们每晚选择一名非狼玩家杀害，也可以选择空刀。' + (wolves[i].character ? wolves[i].character.desc : ''),
+                '第' + gs.day + '天夜晚。可刀目标：' + targetNames + '。\n狼人密议记录：\n' + discussionText + '\n请回复目标名字或"空刀"。'), ACTION_TIMEOUT);
+            if (resp && resp !== '__timeout__') {
+                var parsed = parsePlayerName(resp, targets);
+                if (parsed) votes[parsed] = (votes[parsed] || 0) + 1;
+            }
+        }
+    }
+
+    var maxVotes = 0; var maxId = null; var tied = false;
+    Object.keys(votes).forEach(function (id) {
+        if (votes[id] > maxVotes) { maxVotes = votes[id]; maxId = id; tied = false; }
+        else if (votes[id] === maxVotes) { tied = true; }
+    });
+    gs.night.wolfTarget = tied ? null : maxId;
+
+    var wolfTargetName = gs.night.wolfTarget ? getPlayerById(room, gs.night.wolfTarget).name : '空刀';
+    for (var j = 0; j < wolves.length; j++) {
+        await generateAndStoreThought(room, wolves[j], '狼人投票', '选择杀害' + wolfTargetName, 'night');
+    }
+    hideNightAction();
+}
+
+function renderWolfDiscussion(room, wolves, targets) {
+    var gs = room.gameState;
+    var $panel = $('#night-action-panel');
+    var teammateNames = wolves.filter(function (w) { return !w.isUser; }).map(function (w) { return w.name; }).join('、');
+    var html = '<div class="wolf-discussion-panel">';
+    html += '<div class="wolf-discussion-header">狼人密议<span class="wolf-discussion-sub">你的狼队友：' + teammateNames + '</span></div>';
+    html += '<div class="wolf-discussion-messages" id="wolf-discussion-messages">';
+    gs.wolfMessages.forEach(function (m) {
+        html += '<div class="wolf-discussion-msg"><b>' + m.name + '</b>：' + m.text + '</div>';
+    });
+    html += '</div>';
+    html += '<button class="wolf-discussion-done" id="wolf-discussion-done">开始投票</button>';
+    html += '</div>';
+    showNightPanel(html);
+    scrollWolfDiscussion();
+
+    $('#wolf-discussion-done').off('click').on('click', function () {
+        if (pendingHumanAction) {
+            pendingHumanAction.resolve('done');
+            pendingHumanAction = null;
+        }
+    });
+}
+
+function renderWolfVote(room, targets, wolfNames) {
+    var $panel = $('#night-action-panel');
+    var html = '<div class="wolf-vote-panel">';
+    html += '<div class="wolf-vote-header">选择今晚的目标</div>';
+    if (wolfNames) html += '<div class="wolf-vote-sub">狼队友：' + wolfNames + '</div>';
+    html += '<div class="wolf-vote-grid">';
+    targets.forEach(function (p) {
+        html += '<button class="wolf-vote-target" data-target="' + p.id + '">' + p.name + '</button>';
+    });
+    html += '</div>';
+    html += '<button class="wolf-vote-skip" data-target="empty">空刀（跳过）</button>';
+    html += '</div>';
+    showNightPanel(html);
+    startCountdown(ACTION_TIMEOUT, $panel);
+
+    $panel.off('click').on('click', '.wolf-vote-target, .wolf-vote-skip', function () {
+        if (!pendingHumanAction) return;
+        var target = $(this).data('target');
+        clearCountdown();
+        pendingHumanAction.resolve(target === 'empty' ? null : target);
+        pendingHumanAction = null;
+    });
+}
+
+function appendWolfMessage(name, text) {
+    var gs = _mt.room.gameState;
+    gs.wolfMessages.push({ name: name, text: text });
+    var $msgs = $('#wolf-discussion-messages');
+    if ($msgs.length) {
+        $msgs.append('<div class="wolf-discussion-msg"><b>' + name + '</b>：' + text + '</div>');
+        scrollWolfDiscussion();
+    }
+}
+
+function scrollWolfDiscussion() {
+    var el = document.getElementById('wolf-discussion-messages');
+    if (el) el.scrollTop = el.scrollHeight;
+}
+
+function refreshMentionList(room) {
+    var $footer = $('#footer-banner');
+    var $old = $footer.find('.mention-list');
+    if ($old.length) $old.remove();
+
+    var gs = room.gameState;
+    var others = room.players.filter(function (p) { return !p.isUser; });
+    if (_mt.mentionFilter === 'wolf') {
+        others = others.filter(function (p) { return isWolf(p.identityId) && gs.players[p.id] && gs.players[p.id].alive; });
+    }
+
+    var listHtml = '';
+    others.forEach(function (p) {
+        listHtml += '<span class="mention-tag" data-name="' + p.name + '">' + p.name + '</span>';
+    });
+    $footer.prepend($('<div class="mention-list">' + listHtml + '</div>'));
+}
+
+async function runNightWitch(room, witch) {
+    var gs = room.gameState;
+    var ps = gs.players[witch.id];
+    var wolfTarget = gs.night.wolfTarget;
+    var wolfVictim = wolfTarget ? getPlayerById(room, wolfTarget) : null;
+    if (witch.isUser) {
+        renderNightAction(room, 'witch', getAlivePlayers(room), wolfVictim ? wolfVictim.name : null);
+        var result = await withTimeout(waitForHumanAction(), ACTION_TIMEOUT);
+        clearCountdown();
+        if (result !== '__timeout__' && result) {
+            if (result.heal) { gs.night.witchHeal = true; ps.witchHealUsed = true; }
+            if (result.poison) { gs.night.witchPoison = result.poison; ps.witchPoisonUsed = true; }
+        } else {
+            addMessage('系统', '女巫超时，未使用任何药水。');
+        }
+    } else {
+        renderNightWaiting(room, witch);
+        var healInfo = ps.witchHealUsed ? '你已经使用了解药。' : '你还有解药。';
+        var poisonInfo = ps.witchPoisonUsed ? '你已经使用了毒药。' : '你还有毒药。';
+        var killInfo = wolfVictim ? '今晚' + wolfVictim.name + '被狼人杀害了。' : '今晚没有人被狼人杀害。';
+        var cantSelfHeal = (gs.day === 0 && wolfTarget === witch.id) ? '注意：第0天你不能自救。' : '';
+        var aliveNames = getAlivePlayers(room).filter(function (p) { return p.id !== witch.id; }).map(function (p) { return p.name; }).join('、');
+        var resp = await withTimeout(queryAIWithContext(room, witch,
+            '你是女巫。你有一瓶解药（可以救被狼杀的人）和一瓶毒药（可以毒杀一人），各限用一次。不能在同一晚同时使用两瓶药。' + (witch.character ? witch.character.desc : ''),
+            '第' + gs.day + '天夜晚。' + killInfo + healInfo + poisonInfo + cantSelfHeal + '存活其他玩家：' + aliveNames + '。请决定：回复"救{名字}"使用解药，"毒{名字}"使用毒药，或"跳过"不使用。'), ACTION_TIMEOUT);
+        if (resp && resp !== '__timeout__') {
+            if (resp.indexOf('救') >= 0 && !ps.witchHealUsed) {
+                if (wolfTarget && !(gs.day === 0 && wolfTarget === witch.id)) {
+                    gs.night.witchHeal = true; ps.witchHealUsed = true;
+                }
+            }
+            if (resp.indexOf('毒') >= 0 && !ps.witchPoisonUsed) {
+                var candidates = getAlivePlayers(room).filter(function (p) { return p.id !== witch.id; });
+                var parsed = parsePlayerName(resp, candidates);
+                if (parsed) { gs.night.witchPoison = parsed; ps.witchPoisonUsed = true; }
+            }
+        }
+        var witchAction = [];
+        if (gs.night.witchHeal) witchAction.push('使用了解药');
+        if (gs.night.witchPoison) witchAction.push('毒杀了' + getPlayerById(room, gs.night.witchPoison).name);
+        if (witchAction.length === 0) witchAction.push('跳过');
+        await generateAndStoreThought(room, witch, '女巫行动', witchAction.join('，'), 'night');
+    }
+    hideNightAction();
+}
+
+async function runNightSeer(room, seer) {
+    var gs = room.gameState;
+    var candidates = getAlivePlayers(room).filter(function (p) { return p.id !== seer.id; });
+    if (candidates.length === 0) return;
+    if (seer.isUser) {
+        renderNightAction(room, 'seer', candidates, null);
+        var targetId = await withTimeout(waitForHumanAction(), ACTION_TIMEOUT);
+        clearCountdown();
+        if (targetId !== '__timeout__' && targetId) {
+            var target = getPlayerById(room, targetId);
+            var result = isWolf(target.identityId) ? 'wolf' : 'good';
+            gs.night.seerTarget = targetId;
+            gs.night.seerResult = result;
+            gs.players[seer.id].seerChecks.push({ targetId: targetId, result: result });
+            showSeerResult(target.name, result);
+        } else {
+            addMessage('系统', '预言家超时，未查验任何人。');
+        }
+    } else {
+        renderNightWaiting(room, seer);
+        var aliveNames = candidates.map(function (p) { return p.name; }).join('、');
+        var checkedNames = gs.players[seer.id].seerChecks.map(function (c) {
+            return getPlayerById(room, c.targetId).name + (c.result === 'good' ? '（好人）' : '（狼人）');
+        }).join('、');
+        var resp = await withTimeout(queryAIWithContext(room, seer,
+            '你是预言家。每晚可以查验一名玩家的阵营（好人或狼人）。' + (seer.character ? seer.character.desc : ''),
+            '第' + gs.day + '天夜晚。存活可查玩家：' + aliveNames + (checkedNames ? '。你之前查验过：' + checkedNames : '') + '。请回复你要查验的玩家名字。'), ACTION_TIMEOUT);
+        var parsed = null;
+        if (resp && resp !== '__timeout__') parsed = parsePlayerName(resp, candidates);
+        if (!parsed) parsed = candidates[Math.floor(Math.random() * candidates.length)].id;
+        var p = getPlayerById(room, parsed);
+        var r = isWolf(p.identityId) ? 'wolf' : 'good';
+        gs.night.seerTarget = parsed;
+        gs.night.seerResult = r;
+        gs.players[seer.id].seerChecks.push({ targetId: parsed, result: r });
+        var seerTargetName = p.name;
+        var seerResultText = r === 'wolf' ? '狼人' : '好人';
+        await generateAndStoreThought(room, seer, '查验', '查验了' + seerTargetName + '，结果是' + seerResultText, 'night');
+    }
+    hideNightAction();
+}
+
+/* ── Placeholder Night Handlers (extensible) ── */
+
+async function runNightHunter(room, hunter) {
+    // Placeholder: 猎人夜间行动（可扩展）
+    var gs = room.gameState;
+    if (hunter.isUser) {
+        renderNightAction(room, 'hunter', getAlivePlayers(room).filter(function (p) { return p.id !== hunter.id; }), null);
+        var result = await withTimeout(waitForHumanAction(), ACTION_TIMEOUT);
+        clearCountdown();
+        // TODO: 猎人夜间技能
+    } else {
+        renderNightWaiting(room, hunter);
+        // TODO: 猎人夜间AI决策
+    }
+    hideNightAction();
+}
+
+async function runNightIdiot(room, idiot) {
+    // Placeholder: 白痴首夜行动（可扩展）
+    var gs = room.gameState;
+    if (idiot.isUser) {
+        renderNightAction(room, 'idiot', getAlivePlayers(room), null);
+        var result = await withTimeout(waitForHumanAction(), ACTION_TIMEOUT);
+        clearCountdown();
+        // TODO: 白痴首夜技能
+    } else {
+        renderNightWaiting(room, idiot);
+        // TODO: 白痴首夜AI决策
+    }
+    hideNightAction();
+}
+
+/* ── Day Phase Handlers ── */
+
+function renderDayAnnounce(room) {
+    var gs = room.gameState;
+    var dead = room.players.filter(function (p) {
+        var ps = gs.players[p.id];
+        return ps && !ps.alive && ps.deathCause;
+    });
+    if (dead.length === 0) {
+        addMessage('系统', '天亮了。昨晚是平安夜，无人死亡。');
+    } else {
+        var text = '天亮了。昨晚';
+        dead.forEach(function (p, i) {
+            if (i > 0) text += '，';
+            text += p.name + '死了';
+        });
+        text += '。';
+        addMessage('系统', text);
+    }
+    room.players.forEach(function (p) {
+        var ps = gs.players[p.id];
+        if (ps) delete ps.deathCause;
+    });
+    renderPhaseIndicator(room);
+}
+
+async function runDaySpeech(room) {
+    var gs = room.gameState;
+    var alive = getAlivePlayers(room);
+    if (alive.length === 0) return;
+
+    // Fixed seat order: P1, P2, ..., PN
+    var order = alive.sort(function (a, b) {
+        return room.players.indexOf(a) - room.players.indexOf(b);
+    });
+
+    var $btn = $('[data-footer="continue"]');
+    for (var i = 0; i < order.length; i++) {
+        var speaker = order[i];
+        if (speaker.isUser) {
+            showChatInput();
+            $btn.text('发言完毕').prop('disabled', false).off('click').on('click', function () {
+                hideChatInput();
+                $btn.prop('disabled', true).text('进行中...');
+                if (pendingHumanAction) {
+                    pendingHumanAction.resolve();
+                    pendingHumanAction = null;
+                }
+            });
+            await waitForHumanAction();
+        } else {
+            var $indicator = $('<div class="speech-indicator">' + speaker.name + '发言中...</div>');
+            $('#day-selector').hide();
+            $('#meeting-messages').before($indicator);
+            $btn.prop('disabled', true).text('进行中...').addClass('breathing');
+            var speech = await withTimeout(generateAISpeech(room, speaker), ACTION_TIMEOUT);
+            $indicator.remove();
+            $('#day-selector').show();
+            $btn.removeClass('breathing');
+            if (speech === '__timeout__' || !speech) {
+                addMessage('系统', speaker.name + '超时无响应。');
+            } else {
+                addMessage(speaker.name, speech);
+            }
+            await saveGameState(room);
+        }
+    }
+}
+
+async function generateAISpeech(room, speaker) {
+    var gs = room.gameState;
+    var roleDef = ROLES.find(function (r) { return r.id === speaker.identityId; });
+    var roleName = roleDef ? roleDef.name : '未知';
+    var aliveNames = getAlivePlayers(room).map(function (p) { return p.name; }).join('、');
+    var privateInfo = '';
+    if (isWolf(speaker.identityId)) {
+        var teammates = getAliveWolves(room).filter(function (w) { return w.id !== speaker.id; }).map(function (w) { return w.name; }).join('、');
+        privateInfo = '你是狼人阵营。你的狼队友：' + (teammates || '无（你可能是唯一的狼）');
+    }
+    if (speaker.identityId === 'seer') {
+        var checks = gs.players[speaker.id].seerChecks.map(function (c) {
+            return getPlayerById(room, c.targetId).name + (c.result === 'good' ? '是好人' : '是狼人');
+        }).join('；');
+        privateInfo = '你是预言家。查验记录：' + (checks || '暂无');
+    }
+    var resp = await queryAIWithContext(room, speaker,
+        '你是' + speaker.name + '，身份是' + roleName + '。当前是第' + gs.day + '天的白天讨论环节。存活玩家：' + aliveNames + '。' + privateInfo + (speaker.character ? '\n你的性格：' + speaker.character.desc : '') + '\n请发表你的观点和推理，用中文发言，语气符合角色性格，50-100字。只回复发言内容，不要加引号或前缀。',
+        '请发表你的发言。');
+    await generateAndStoreThought(room, speaker, '白天发言', '发表了公开演讲', 'day');
+    return resp || '（沉默）';
+}
+
+async function runDayVote(room) {
+    var gs = room.gameState;
+    var voters = getAlivePlayers(room).filter(function (p) { return gs.players[p.id].canVote; });
+    var targets = getAlivePlayers(room);
+    gs.dayVotes = {};
+    var userVoter = voters.find(function (v) { return v.isUser; });
+    if (userVoter) {
+        renderVoteUI(room, targets);
+        var vote = await withTimeout(waitForHumanAction(), ACTION_TIMEOUT);
+        clearCountdown();
+        gs.dayVotes[userVoter.id] = (vote !== '__timeout__') ? vote : 'abstain';
+        var votedName = gs.dayVotes[userVoter.id] === 'abstain' ? '弃权' : getPlayerById(room, gs.dayVotes[userVoter.id]).name;
+        var $panel = $('#night-action-panel');
+        $panel.html('<div class="night-action-title">投票</div><div class="vote-waiting">你投了 <b>' + votedName + '</b><br>等待其他玩家投票...</div>');
+    }
+    var aiVoters = voters.filter(function (v) { return !v.isUser; });
+    var targetNames = targets.map(function (p) { return p.name; }).join('、');
+    for (var i = 0; i < aiVoters.length; i++) {
+        if (i > 0) await new Promise(function (r) { setTimeout(r, 1000); });
+        var voter = aiVoters[i];
+        var resp = await withTimeout(queryAIWithContext(room, voter,
+            '你是' + voter.name + '。当前投票环节，请投出你认为的狼人。' + (voter.character ? voter.character.desc : ''),
+            '可投票目标：' + targetNames + '。回复玩家名字或"弃权"。'), ACTION_TIMEOUT);
+        var parsed = (resp && resp !== '__timeout__') ? parsePlayerName(resp, targets) : null;
+        gs.dayVotes[voter.id] = parsed || 'abstain';
+        var votedFor = gs.dayVotes[voter.id] === 'abstain' ? '弃权' : getPlayerById(room, gs.dayVotes[voter.id]).name;
+        await generateAndStoreThought(room, voter, '投票', '投了' + votedFor, 'day');
+    }
+    hideVoteUI();
+    var result = tallyVotes(room, gs.dayVotes, targets);
+    addMessage('系统', '投票结果：' + result.summary);
+    if (result.eliminated) {
+        var elId = result.eliminated;
+        var elPlayer = getPlayerById(room, elId);
+        if (elPlayer.identityId === 'idiot') {
+            var elPs = gs.players[elId];
+            if (elPlayer.isUser) {
+                renderIdiotChoice(room, elPlayer);
+                var choice = await withTimeout(waitForHumanAction(), ACTION_TIMEOUT);
+                clearCountdown();
+                if (choice === 'reveal') {
+                    elPs.isIdiotRevealed = true;
+                    elPs.canVote = false;
+                    addMessage('系统', elPlayer.name + '翻出白痴身份，免于被投出。');
+                    await saveGameState(room);
+                    return;
+                }
+            } else {
+                elPs.isIdiotRevealed = true;
+                elPs.canVote = false;
+                addMessage('系统', elPlayer.name + '翻出白痴身份，免于被投出。');
+                await saveGameState(room);
+                return;
+            }
+        }
+        killPlayer(room, elId, 'vote');
+        await saveGameState(room);
+        var winner = checkWinCondition(room);
+        if (winner) { gs.winner = winner; gs.phase = 'game-over'; await saveGameState(room); renderPhaseIndicator(room); renderGameOver(room); return; }
+        if (elPlayer.identityId === 'hunter' || elPlayer.identityId === 'wolfking') {
+            await runShootAbility(room, elPlayer);
+            winner = checkWinCondition(room);
+            if (winner) { gs.winner = winner; gs.phase = 'game-over'; await saveGameState(room); renderPhaseIndicator(room); renderGameOver(room); return; }
+        }
+        // Last words for voted-out player
+        addMessage('系统', '— ' + elPlayer.name + '的遗言 —');
+        if (elPlayer.isUser) {
+            showChatInput();
+            var $btn = $('[data-footer="continue"]');
+            $btn.text('遗言完毕').prop('disabled', false).off('click').on('click', function () {
+                hideChatInput();
+                $btn.prop('disabled', true).text('进行中...');
+                if (pendingHumanAction) {
+                    pendingHumanAction.resolve();
+                    pendingHumanAction = null;
+                }
+            });
+            await waitForHumanAction();
+        } else {
+            var lastWord = await generateAISpeech(room, elPlayer);
+            addMessage(elPlayer.name, '【遗言】' + (lastWord || '（沉默）'));
+        }
+        gs.players[elId].lastWordsSpoken = true;
+        await saveGameState(room);
+    }
+}
+
+function tallyVotes(room, votes, targets) {
+    var counts = {};
+    targets.forEach(function (p) { counts[p.id] = 0; });
+    var abstainCount = 0;
+    Object.keys(votes).forEach(function (voterId) {
+        var targetId = votes[voterId];
+        if (targetId === 'abstain') {
+            abstainCount++;
+        } else {
+            counts[targetId] = (counts[targetId] || 0) + 1;
+        }
+    });
+    var summaryParts = [];
+    Object.keys(counts).forEach(function (id) {
+        if (counts[id] > 0) {
+            summaryParts.push(getPlayerById(room, id).name + '：' + counts[id] + '票');
+        }
+    });
+    if (abstainCount > 0) summaryParts.push('弃权：' + abstainCount + '票');
+    var maxVotes = 0; var eliminated = null; var tied = false;
+    Object.keys(counts).forEach(function (id) {
+        if (counts[id] > maxVotes) { maxVotes = counts[id]; eliminated = id; tied = false; }
+        else if (counts[id] === maxVotes && maxVotes > 0) { tied = true; }
+    });
+    return { summary: summaryParts.join('，'), eliminated: tied ? null : eliminated };
+}
+
+async function runShootAbility(room, shooter) {
+    var gs = room.gameState;
+    var targets = getAlivePlayers(room).filter(function (p) { return p.id !== shooter.id; });
+    if (targets.length === 0) return;
+    if (shooter.isUser) {
+        renderShootUI(room, shooter, targets);
+        var targetId = await withTimeout(waitForHumanAction(), ACTION_TIMEOUT);
+        clearCountdown();
+        if (targetId !== '__timeout__' && targetId && targetId !== 'skip') {
+            killPlayer(room, targetId, 'shoot');
+        } else if (targetId === '__timeout__') {
+            addMessage('系统', shooter.name + '超时未开枪。');
+        }
+    } else {
+        var names = targets.map(function (p) { return p.name; }).join('、');
+        var resp = await withTimeout(queryAIWithContext(room, shooter,
+            '你是' + shooter.name + '（' + ROLES.find(function (r) { return r.id === shooter.identityId; }).name + '），你死了。你可以开枪带走一名玩家，被带走者无遗言。' + (shooter.character ? shooter.character.desc : ''),
+            '可射击目标：' + names + '。回复目标名字或"不开枪"。'), ACTION_TIMEOUT);
+        if (resp && resp !== '__timeout__') {
+            var parsed = parsePlayerName(resp, targets);
+            if (parsed) killPlayer(room, parsed, 'shoot');
+        }
+        await generateAndStoreThought(room, shooter, '开枪', '使用了射击技能', 'day');
+    }
+    hideShootUI();
+    await saveGameState(room);
+}
+
+/* ── Night/Day UI Renderers ── */
+
+function renderPhaseIndicator(room) {
+    var gs = room.gameState;
+    var $indicator = $('#phase-indicator');
+    if (!$indicator.length) return;
+    var text = '';
+    if (gs.phase === 'idle') text = '';
+    else if (gs.phase === 'night') {
+        var entry = NIGHT_ORDER.find(function (e) { return e.id === gs.subPhase; });
+        text = '第' + gs.day + '天 · 夜晚' + (entry ? ' · ' + entry.label + '行动' : '');
+    }
+    else if (gs.phase === 'day-announce') text = '第' + gs.day + '天 · 白昼降临';
+    else if (gs.phase === 'day-speech') text = '第' + gs.day + '天 · 固定发言';
+    else if (gs.phase === 'day-vote') text = '第' + gs.day + '天 · 投票环节';
+    else if (gs.phase === 'game-over') text = '游戏结束';
+    $indicator.text(text);
+}
+
+function renderNightAction(room, type, candidates, extra) {
+    var $panel = $('#night-action-panel');
+    if (!$panel.length) return;
+    var html = '<div class="night-action-title">';
+    if (type === 'guard') html += '守卫 — 选择要守护的玩家';
+    else if (type === 'cupid') html += '丘比特 — 选择两名玩家作为恋人（依次点击）';
+    else if (type === 'werewolf') html += '狼人 — 选择要杀害的目标' + (extra ? '<br><span class="night-action-sub">你的狼队友：' + extra + '</span>' : '');
+    else if (type === 'witch') html += '女巫 —' + (extra ? ' 今晚<b>' + extra + '</b>被狼人杀害' : ' 今晚无人被狼人杀害');
+    else if (type === 'seer') html += '预言家 — 选择要查验的玩家';
+    html += '</div><div class="night-action-list">';
+    candidates.forEach(function (p) {
+        html += '<button class="night-action-target" data-target="' + p.id + '">' + p.name + '</button>';
+    });
+    if (type === 'werewolf') html += '<button class="night-action-target night-action-skip" data-target="empty">空刀</button>';
+    if (type === 'witch') {
+        var gs = room.gameState;
+        var ps = gs.players[room.players.find(function (p) { return p.isUser; }).id];
+        if (extra && !ps.witchHealUsed && !(gs.day === 0 && gs.night.wolfTarget === room.players.find(function (p) { return p.isUser; }).id)) {
+            html += '<button class="night-action-target night-action-heal" data-target="heal">使用解药救' + extra + '</button>';
+        }
+        if (!ps.witchPoisonUsed) {
+            html += '<div class="night-action-sub">选择毒杀目标：</div>';
+            getAlivePlayers(room).filter(function (p) { return !p.isUser; }).forEach(function (p) {
+                html += '<button class="night-action-target night-action-poison" data-target="poison-' + p.id + '">毒杀' + p.name + '</button>';
+            });
+        }
+        html += '<button class="night-action-target night-action-skip" data-target="skip">跳过</button>';
+    }
+    html += '</div>';
+    showNightPanel(html);
+    $('#meeting-chat-input').hide();
+    startCountdown(ACTION_TIMEOUT, $panel);
+
+    $panel.off('click').on('click', '.night-action-target', function () {
+        var target = $(this).data('target');
+        if (!pendingHumanAction) return;
+        if (type === 'cupid') {
+            if (!pendingHumanAction._cupidFirst) {
+                pendingHumanAction._cupidFirst = target;
+                $(this).addClass('selected').prop('disabled', true);
+                return;
+            }
+            clearCountdown();
+            pendingHumanAction.resolve([pendingHumanAction._cupidFirst, target]);
+            pendingHumanAction = null;
+            return;
+        }
+        if (type === 'witch') {
+            var result = { heal: false, poison: null };
+            if (target === 'heal') result.heal = true;
+            else if (target && target.toString().indexOf('poison-') === 0) result.poison = target.replace('poison-', '');
+            clearCountdown();
+            pendingHumanAction.resolve(result);
+            pendingHumanAction = null;
+            return;
+        }
+        clearCountdown();
+        pendingHumanAction.resolve(target === 'empty' ? null : target);
+        pendingHumanAction = null;
+    });
+}
+
+function renderNightWaiting(room, player) {
+    var $panel = $('#night-action-panel');
+    if (!$panel.length) return;
+    var roleLabels = { guard: '守卫', cupid: '丘比特', werewolf: '狼人', witch: '女巫', seer: '预言家' };
+    var label = roleLabels[player.identityId] || '其他玩家';
+    showNightPanel('<div class="night-action-waiting">等待' + label + '行动...</div>');
+}
+
+function showNightPanel(html) {
+    $('#night-action-panel').html(html).css('display', 'flex');
+}
+
+function hideNightAction() {
+    $('#night-action-panel').hide();
+}
+
+function showSeerResult(name, result) {
+    var text = result === 'wolf' ? name + ' 是狼人阵营！' : name + ' 是好人阵营。';
+    toastr.success(text, '查验结果');
+}
+
+function showChatInput() {
+    $('#meeting-chat-input').show();
+    $('[data-footer="send"]').show();
+}
+
+function hideChatInput() {
+    $('#meeting-chat-input').hide();
+    $('[data-footer="send"]').hide();
+}
+
+function renderVoteUI(room, targets) {
+    var $panel = $('#night-action-panel');
+    var html = '<div class="night-action-title">投票 — 选择你要投出的玩家</div><div class="night-action-list">';
+    targets.forEach(function (p) {
+        html += '<button class="night-action-target" data-target="' + p.id + '">' + p.name + '</button>';
+    });
+    html += '<button class="night-action-target night-action-skip" data-target="abstain">弃权</button>';
+    html += '</div>';
+    showNightPanel(html);
+    $('#meeting-chat-input').hide();
+    startCountdown(ACTION_TIMEOUT, $panel);
+
+    $panel.off('click').on('click', '.night-action-target', function () {
+        if (!pendingHumanAction) return;
+        clearCountdown();
+        pendingHumanAction.resolve($(this).data('target'));
+        pendingHumanAction = null;
+    });
+}
+
+function hideVoteUI() {
+    hideNightAction();
+}
+
+function renderShootUI(room, shooter, targets) {
+    var roleName = ROLES.find(function (r) { return r.id === shooter.identityId; }).name;
+    var $panel = $('#night-action-panel');
+    var html = '<div class="night-action-title">' + roleName + '技能 — 选择要带走的玩家</div><div class="night-action-list">';
+    targets.forEach(function (p) {
+        html += '<button class="night-action-target" data-target="' + p.id + '">' + p.name + '</button>';
+    });
+    html += '<button class="night-action-target night-action-skip" data-target="skip">不开枪</button>';
+    html += '</div>';
+    showNightPanel(html);
+    startCountdown(ACTION_TIMEOUT, $panel);
+
+    $panel.off('click').on('click', '.night-action-target', function () {
+        if (!pendingHumanAction) return;
+        clearCountdown();
+        pendingHumanAction.resolve($(this).data('target'));
+        pendingHumanAction = null;
+    });
+}
+
+function hideShootUI() {
+    hideNightAction();
+}
+
+function renderIdiotChoice(room, player) {
+    var $panel = $('#night-action-panel');
+    showNightPanel('<div class="night-action-title">你被投票出局了</div><div class="night-action-list"><button class="night-action-target" data-target="reveal">翻牌免死（之后无法投票）</button><button class="night-action-target night-action-skip" data-target="accept">接受出局</button></div>');
+    startCountdown(ACTION_TIMEOUT, $panel);
+
+    $panel.off('click').on('click', '.night-action-target', function () {
+        if (!pendingHumanAction) return;
+        clearCountdown();
+        pendingHumanAction.resolve($(this).data('target'));
+        pendingHumanAction = null;
+    });
+}
+
+function renderGameOver(room) {
+    var gs = room.gameState;
+    var winner = gs.winner;
+    var text = winner === 'good' ? '好人阵营获胜！' : '狼人阵营获胜！';
+    var $overlay = $('#game-over-overlay');
+    if (!$overlay.length) return;
+    $overlay.html('<div class="game-over-content"><div class="game-over-title">' + text + '</div><button class="game-over-btn" id="game-over-back">返回首页</button></div>').show();
+    $('#game-over-back').on('click', function () {
+        $overlay.hide();
+        window.location.hash = '#/home';
+    });
+}
+
+
+/* ══════════════════════════════════════
    § Meeting - 房间详情视图
    ══════════════════════════════════════ */
 
-var _mt = { bound: {}, room: null };
+var _mt = { bound: {}, room: null, selectedDay: undefined };
 
 window.viewMeeting = {
     init: function () {
         if (currentRoomId) {
             getRoom(currentRoomId).then(function (room) {
                 if (room) {
+                    if (!room.gameState) initGameState(room);
                     renderMeeting(room);
+                    renderPhaseIndicator(room);
                     bindChatInput();
+                    if (room.gameState.phase === 'idle') {
+                        bindGameStart();
+                    } else if (room.gameState.phase === 'game-over') {
+                        renderGameOver(room);
+                    }
                 }
             });
         }
@@ -1015,7 +2391,11 @@ window.viewMeeting = {
         $('#meeting-player-name').off('change', _mt.bound.playerNameChange);
         $('#meeting-chat-input').off('keydown', _mt.bound.chatKeydown);
         $('[data-footer="send"]').off('click', _mt.bound.sendClick);
+        $('[data-footer="continue"]').off('click', _mt.bound.continueClick);
+        $('#night-action-panel').off('click');
         $('.mention-list').off('click', _mt.bound.mentionClick).remove();
+        $('#game-over-overlay').hide();
+        pendingHumanAction = null;
         _mt.bound = {};
         _mt.room = null;
     }
@@ -1061,7 +2441,14 @@ function closeMeetingPanel() {
     $('#meeting-panel').hide();
     document.querySelectorAll('.meeting-bar-btn').forEach(function (b) { b.classList.remove('active'); });
     _mt.activePanel = null;
+    _mt.selectedDay = undefined;
+    var room = _mt.room;
+    if (room) {
+        renderDaySelector(room);
+        renderMessagesForDay(room, room.gameState ? room.gameState.day : 0);
+    }
     $('#meeting-messages').show();
+    $('#day-selector').show();
 }
 
 function showMeetingPanel(type, room) {
@@ -1087,6 +2474,7 @@ function showMeetingPanel(type, room) {
     }
 
     $('#meeting-messages').hide();
+    $('#day-selector').hide();
 
     if (type === 'characters') {
         $panel.off('click', _mt.bound.revealClick);
@@ -1131,11 +2519,15 @@ function showMeetingPanel(type, room) {
 
 function buildCharactersPanel(room) {
     if (!room.players || room.players.length === 0) return '<div class="meeting-empty">暂无玩家</div>';
+    var gs = room.gameState;
     var html = '<div class="player-list">';
     room.players.forEach(function (p, idx) {
         var def = ROLES.find(function (d) { return d.id === p.identityId; });
         var campClass = def ? def.camp : '';
         var userClass = p.isUser ? ' player-self' : '';
+        var ps = gs ? gs.players[p.id] : null;
+        var isDead = ps && !ps.alive;
+        var deadClass = isDead ? ' dead' : '';
         var avatarHtml = '';
         if (p.isUser) {
             avatarHtml = '<div class="player-avatar-self">' + p.name.charAt(0) + '</div>';
@@ -1146,20 +2538,24 @@ function buildCharactersPanel(room) {
             avatarHtml = '<div class="player-avatar-placeholder">' + p.name.charAt(0) + '</div>';
         }
         var identityHtml = '';
+        var user = room.players.find(function (u) { return u.isUser; });
+        var userIsWolf = user && gs && gs.players[user.id] && gs.players[user.id].alive && isWolf(user.identityId);
         if (p.isUser) {
+            identityHtml = '<span class="player-card-identity ' + campClass + '">' + (def ? def.name : '未知') + '</span>';
+        } else if (userIsWolf && isWolf(p.identityId)) {
             identityHtml = '<span class="player-card-identity ' + campClass + '">' + (def ? def.name : '未知') + '</span>';
         } else {
             identityHtml = '<span class="identity-mask">***</span>' +
                 '<span class="identity-real player-card-identity ' + campClass + '" style="display:none">' + (def ? def.name : '未知') + '</span>';
         }
-        html += '<div class="player-card' + userClass + '">' +
+        html += '<div class="player-card' + userClass + deadClass + '">' +
             '<span class="player-card-seat">P' + (idx + 1) + '</span>' +
             '<div class="player-card-avatar">' + avatarHtml + '</div>' +
             '<div class="player-card-info">' +
-                '<span class="player-card-name">' + p.name + (p.isUser ? '（你）' : '') + '</span>' +
+                '<span class="player-card-name">' + p.name + (p.isUser ? '（你）' : '') + (isDead ? ' <span class="player-card-dead">已死亡</span>' : '') + '</span>' +
                 identityHtml +
             '</div>' +
-            (p.isUser ? '' : '<button class="player-identity-reveal">查看</button>') +
+            (p.isUser || (userIsWolf && isWolf(p.identityId)) ? '' : '<button class="player-identity-reveal">查看</button>') +
         '</div>';
     });
     html += '</div>';
@@ -1248,6 +2644,37 @@ function addRoomEvent(day, phase, text) {
 }
 
 function renderMessages(room) {
+    var gs = room.gameState;
+    var day = (gs && gs.phase && gs.phase !== 'idle') ? gs.day : 0;
+    renderDaySelector(room);
+    renderMessagesForDay(room, day);
+}
+
+function renderDaySelector(room) {
+    var $selector = $('#day-selector');
+    if (!$selector.length) return;
+    var gs = room.gameState;
+    if (!gs || !gs.phase || gs.phase === 'idle') {
+        $selector.hide();
+        return;
+    }
+    var currentDay = gs.day;
+    var html = '';
+    for (var d = 0; d <= currentDay; d++) {
+        var active = (_mt.selectedDay !== undefined ? _mt.selectedDay : currentDay) === d ? ' active' : '';
+        html += '<button class="day-selector-btn' + active + '" data-day="' + d + '">第' + d + '天</button>';
+    }
+    $selector.html(html).show();
+    $selector.off('click').on('click', '.day-selector-btn', function () {
+        var day = parseInt($(this).data('day'));
+        _mt.selectedDay = day;
+        $selector.find('.day-selector-btn').removeClass('active');
+        $(this).addClass('active');
+        renderMessagesForDay(room, day);
+    });
+}
+
+function renderMessagesForDay(room, day) {
     var $container = $('#meeting-messages');
     if (!$container.length) return;
     if (!room.messages || room.messages.length === 0) {
@@ -1255,7 +2682,10 @@ function renderMessages(room) {
         return;
     }
     var html = '';
+    var hasMessages = false;
     room.messages.forEach(function (msg, idx) {
+        if (msg.day !== day) return;
+        hasMessages = true;
         var lines = msg.text.split('\n');
         var textHtml = lines.join('<br>');
         html += '<div class="chat-msg-swipe" data-idx="' + idx + '">' +
@@ -1266,6 +2696,9 @@ function renderMessages(room) {
             '<div class="chat-msg-delete">删除</div>' +
         '</div>';
     });
+    if (!hasMessages) {
+        html = '<div class="day-empty-msg">该日暂无发言记录</div>';
+    }
     $container.html(html);
     $container[0].scrollTop = $container[0].scrollHeight;
     bindSwipeDelete($container[0], room);
@@ -1275,15 +2708,17 @@ function addMessage(name, text) {
     var room = _mt.room;
     if (!room) return;
     if (!room.messages) room.messages = [];
+    var day = room.gameState ? room.gameState.day : 0;
     var last = room.messages[room.messages.length - 1];
-    if (last && last.name === name) {
+    if (last && last.name === name && last.day === day) {
         last.text += '\n' + text;
         last.time = Date.now();
     } else {
-        room.messages.push({ name: name, text: text, time: Date.now() });
+        room.messages.push({ name: name, text: text, time: Date.now(), day: day });
     }
     saveRoom(room).then(function () {
-        renderMessages(room);
+        renderDaySelector(room);
+        renderMessagesForDay(room, _mt.selectedDay !== undefined ? _mt.selectedDay : day);
     });
 }
 
@@ -1370,20 +2805,10 @@ function bindChatInput() {
     var room = _mt.room;
     if (!room || !room.players) return;
 
-    var others = room.players.filter(function (p) { return !p.isUser; });
-    if (others.length === 0) return;
+    refreshMentionList(room);
 
-    var listHtml = '';
-    others.forEach(function (p) {
-        listHtml += '<span class="mention-tag" data-name="' + p.name + '">' + p.name + '</span>';
-    });
-    var $mentionRow = $('<div class="mention-list">' + listHtml + '</div>');
-    $footer.prepend($mentionRow);
-
-    _mt.bound.mentionClick = function (e) {
-        var $tag = $(e.target).closest('.mention-tag');
-        if (!$tag.length) return;
-        var name = $tag.data('name');
+    $footer.off('click', '.mention-tag').on('click', '.mention-tag', function () {
+        var name = $(this).data('name');
         var val = $input.val();
         var pos = $input[0].selectionStart || val.length;
         var before = val.substring(0, pos);
@@ -1391,25 +2816,66 @@ function bindChatInput() {
         if (before.length > 0 && before.charAt(before.length - 1) !== ' ') before += ' ';
         $input.val(before + '@' + name + ' ' + after);
         $input.focus();
-    };
-    $mentionRow.on('click', _mt.bound.mentionClick);
+    });
 
-    var inputEl = $input[0];
     function sendMessage() {
         var text = $input.val().trim();
         if (!text) return;
         $input.val('');
         var user = room.players.find(function (p) { return p.isUser; });
+        var gs = room.gameState;
+
+        // Wolf night discussion: messages go to wolfMessages, not public chat
+        if (gs && gs.phase === 'night' && user && isWolf(user.identityId) && gs.wolfMessages) {
+            appendWolfMessage(user ? user.name : '玩家', text);
+            return;
+        }
+
         addMessage(user ? user.name : '玩家', text);
+
+        // Day phase: mentioned players respond via AI
+        if (gs && (gs.phase === 'day-speech' || gs.phase === 'day-vote')) {
+            var others = room.players.filter(function (p) { return !p.isUser; });
+            var mentioned = [];
+            others.forEach(function (p) {
+                if (text.indexOf('@' + p.name) >= 0 && gs.players[p.id] && gs.players[p.id].alive) {
+                    mentioned.push(p);
+                }
+            });
+            if (mentioned.length > 0) {
+                triggerMentionResponses(room, mentioned, text);
+            }
+        }
     }
 
     _mt.bound.sendClick = sendMessage;
-    $sendBtn.on('click', _mt.bound.sendClick);
+    $sendBtn.off('click').on('click', _mt.bound.sendClick);
 
     _mt.bound.chatKeydown = function (e) {
         if (e.key === 'Enter') sendMessage();
     };
-    $input.on('keydown', _mt.bound.chatKeydown);
+    $input.off('keydown').on('keydown', _mt.bound.chatKeydown);
+}
+
+async function triggerMentionResponses(room, mentioned, userText) {
+    var gs = room.gameState;
+    var eventText = room.events ? room.events.slice(-5).map(function (e) { return e.text; }).join('；') : '';
+    for (var i = 0; i < mentioned.length; i++) {
+        var p = mentioned[i];
+        var roleDef = ROLES.find(function (r) { return r.id === p.identityId; });
+        var resp = await queryAIWithContext(room, p,
+            '你是' + p.name + '，正在参与狼人杀的自由讨论。' + (p.character ? p.character.desc : '') + (roleDef ? '你的身份是' + roleDef.name + '。' : ''),
+            '有人对大家说："' + userText + '"，其中@了你。请简短回应，50字以内，符合你的性格。');
+        if (resp) addMessage(p.name, resp);
+        await generateAndStoreThought(room, p, '自由讨论回应', '回应了@提及', 'day');
+        await saveGameState(room);
+    }
+}
+
+function bindGameStart() {
+    hideChatInput();
+    updateContinueButton(_mt.room);
+    rebindContinueButton(_mt.room);
 }
 
 
